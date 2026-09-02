@@ -35,7 +35,7 @@ Interface → Application Core → Intelligence → Policy Engine → Executor �
               Project State      Memory / Evidence
 ```
 
-Veja [docs/architecture/overview.md](docs/architecture/overview.md), [docs/product/product-brief.md](docs/product/product-brief.md) e [docs/security/threat-model.md](docs/security/threat-model.md).
+Veja [docs/architecture/overview.md](docs/architecture/overview.md), [docs/product/product-brief.md](docs/product/product-brief.md), [docs/security/threat-model.md](docs/security/threat-model.md) e a [Project Discovery Meeting #001](docs/research/discovery-meeting-001.md).
 
 ## Estrutura
 
