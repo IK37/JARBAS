@@ -2,6 +2,7 @@ node_modules/
 dist/
 coverage/
 .env
+configs/*.local.yaml
 *.db
 *.db-shm
 *.db-wal
