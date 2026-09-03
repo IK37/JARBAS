@@ -10,11 +10,12 @@
 - [x] configuração AMD atual/NVIDIA futura;
 - [x] validação estrutural, janela de contexto e limites de recurso;
 - [x] validar remediação de instalação limpa e dependências explícitas;
-- [ ] validar CI com coverage, audit/secret scan e smoke em Ubuntu/Windows;
+- [x] validar CI com coverage, audit/secret scan e smoke em Ubuntu/Windows;
+- [x] comprovar Ollama/ROCm e primeiro modelo na RX 9060 XT;
 - [ ] fallback observável de runtime;
 - [ ] executar matriz de benchmark na RX 9060 XT.
 
-Critério restante do Milestone 1: carregar e conversar com um modelo real na máquina-alvo, registrar TTFT/tokens/s/RAM/VRAM e comparar os candidatos sem alterar o core.
+Critério restante do Milestone 1: registrar métricas repetidas, validar o lifecycle real do JARBAS e comparar os candidatos sem alterar o core.
 
 ## NEXT — 0–30 dias: provar continuidade
 

@@ -6,19 +6,19 @@
 
 ## Executive Summary
 
-**PASS LOCAL / NO-GO REMOTO:** a Foundation possui implementação funcional, dependências workspace explícitas e validação reproduzível em clone limpo. A aceitação de software permanece aberta até o HEAD final ser publicado e passar no CI Ubuntu/Windows.
+**FOUNDATION SOFTWARE — ACCEPTED:** o histórico foi publicado sem reescrita e o SHA remoto `12aa9495c62e3af061258e1f3b921046d4ee7d27` passou em Ubuntu e Windows. A Foundation possui dependências workspace explícitas, validação reproduzível em clone limpo, coverage, security scan e smoke remotos.
 
 **DONE:** defeitos encontrados por revisões independentes foram reproduzidos e corrigidos: bloqueio da própria UI por Origin, erros depois dos headers, corrida de turnos, respostas parciais após cancelamento, EOF SSE prematuro, `finish_reason` inválido, perda de token usage, lock após desconexão, validação IPv6 loopback e gates incompletos.
 
 **REPRODUCIBILITY PASS LOCAL — HEAD `17aa480`:** a versão documental pré-remediação, preservada na ref local de recuperação, não era reproduzível. Após corrigir as dependências implícitas e o EOF SSE, o snapshot commitado foi clonado sem `node_modules`, `dist`, coverage ou dados anteriores e passou por frozen install e todos os gates.
 
-**PUSH PENDING AUTHORIZATION/CREDENTIAL:** o branch local ficará dez commits à frente de `origin/feat/foundation-001` após este registro final. Uma autorização anterior se referia a outro conjunto de commits, e o terminal também não possui credencial GitHub para Git nativo. O conector GitHub não foi usado para recriar commits via API porque isso produziria SHAs diferentes e divergência de histórico.
+**PUSH DONE:** os commits foram transferidos por Git nativo, preservando seus SHAs. O remoto foi verificado no SHA exato `12aa949`.
 
-**REMOTE CI NOT VALIDATED:** o remoto permanece em `1c2453b`. O CI #9 está verde, mas pertence ao estado anterior e não constitui evidência para esta remediação. A aceitação continua `NO-GO` até o push e novos jobs Ubuntu/Windows verdes.
+**REMOTE CI PASS:** o primeiro workflow da remediação expôs checkout CRLF no Windows. Após fixar `* text=auto eol=lf`, o workflow do SHA `12aa949` passou em Ubuntu e Windows. O resultado antigo não foi reutilizado como evidência.
 
-**IN PROGRESS:** o Milestone 1 completo ainda precisa carregar e executar um LLM real no computador-alvo.
+**IN PROGRESS:** Ollama 0.33.2 já carregou `qwen3.5:4b` 100% na RX 9060 XT por ROCm. O Milestone 1 ainda depende do benchmark versionado e dos testes reais do lifecycle do JARBAS.
 
-**BLOCKED:** este ambiente não possui a RX 9060 XT nem runtime local configurado. Qwen3.5 4B/9B e Ministral 3 8B permanecem `NOT BENCHMARKED LOCALLY`.
+**REAL AMD RUNTIME PASS:** o log do runtime identificou a RX 9060 XT discreta como `gfx1200`, expôs 15,9 GiB de VRAM, descartou a iGPU e carregou o modelo em `ROCm0`. Qwen3.5 4B executou corretamente, mas Qwen3.5 4B/9B e Ministral 3 8B permanecem `NOT BENCHMARKED LOCALLY` até o harness registrar métricas repetidas.
 
 ## Completed
 
@@ -40,6 +40,7 @@
 - build oficial nos testes de integração;
 - CI matricial Ubuntu/Windows, audit, secret scan e smoke de processo;
 - cobertura V8 com thresholds para `domain` e `security`.
+- checkout LF reproduzível em Windows e Linux por política Git versionada.
 
 ## Architecture Decisions
 
@@ -74,7 +75,8 @@ Configuração, contratos, application, API/UI, provider OpenAI-compatible, rout
 | ------------------------------- | ---------------------------------------------------- |
 | MockProvider determinístico     | LOCAL FOUNDATION TEST — passou                       |
 | Protocolo OpenAI-compatible/SSE | LOCAL FOUNDATION TEST com servidor simulado — passou |
-| Qwen3.5 4B/9B                   | NOT BENCHMARKED LOCALLY                              |
+| Qwen3.5 4B                      | REAL MODEL EXECUTION — PASS; NOT BENCHMARKED LOCALLY |
+| Qwen3.5 9B                      | NOT BENCHMARKED LOCALLY                              |
 | Ministral 3 8B                  | NOT BENCHMARKED LOCALLY                              |
 | Qwen3 Embedding/Reranker        | NOT BENCHMARKED LOCALLY                              |
 
@@ -82,16 +84,16 @@ Configuração, contratos, application, API/UI, provider OpenAI-compatible, rout
 
 **DONE:** plano e harness versionados para português, JSON, tool selection, código, prompt injection, TTFT e tokens/s.
 
-**BLOCKED:** tokens/s, VRAM, RAM e qualidade comparativa de LLM exigem execução no hardware do usuário.
+**IN PROGRESS:** o caminho ROCm/VRAM foi comprovado; tokens/s, RAM e qualidade comparativa ainda dependem do harness versionado na máquina-alvo.
 
 ## Tests
 
 - 8 testes Vitest de domínio e Policy Engine;
-- 23 testes nativos de Foundation/integração no worktree atual;
-- 31 cenários automatizados no total;
+- 41 testes nativos de Foundation/integração no worktree atual;
+- 49 cenários automatizados no total atual;
 - cobertura unitária: 81,1% statements/lines, 66,66% branches e 100% functions no escopo `domain` + `security`;
 - os resultados verdes anteriores ao incidente foram obtidos em ambiente incremental e permanecem apenas como histórico;
-- o snapshot `17aa480` passou por clone Git limpo com os 31 testes, sem artefatos ou links residuais;
+- o snapshot `17aa480` passou por clone Git limpo com os 31 testes existentes naquele checkpoint, sem artefatos ou links residuais;
 - smoke real: processo separado, health, same-origin, sessão, NDJSON, persistência, 404 e shutdown IPC.
 
 ## Review Passes
@@ -110,7 +112,7 @@ Configuração, contratos, application, API/UI, provider OpenAI-compatible, rout
 
 A ata consolidada está em `docs/reviews/foundation-remediation-2026-09-03.md`.
 
-### Reproducibility audit
+### Reproducibility audit — historical pre-publication checkpoint
 
 - instalação limpa: **FAIL** na versão pré-remediação;
 - causa: seis imports `@jarvis/*` do harness sem dependências declaradas na raiz;
@@ -120,9 +122,22 @@ A ata consolidada está em `docs/reviews/foundation-remediation-2026-09-03.md`.
 - Review #2 da remediação: **PASS**;
 - Review #3 da remediação: **PASS / GO para commit local**;
 - SHA local final da remediação: **PASS** em clone limpo;
-- push: **BLOCKED** por ausência de credencial GitHub no terminal;
-- CI da remediação: **NOT RUN**; o CI #9 verde pertence ao remoto antigo;
-- release: **NO-GO** até push e CI Ubuntu/Windows da remediação.
+- naquele checkpoint, push: **BLOCKED** por ausência de credencial GitHub no terminal;
+- naquele checkpoint, CI da remediação: **NOT RUN**; o CI #9 verde pertencia ao remoto antigo;
+- naquele checkpoint, release: **NO-GO** até push e CI Ubuntu/Windows da remediação; situação posteriormente resolvida pela aceitação remota abaixo.
+
+### Remote CI and Windows EOL remediation
+
+- publicação por Git nativo: **PASS**, com SHA local/remoto idêntico;
+- primeira execução remota: Ubuntu **PASS**, Windows **FAIL** no Prettier;
+- causa-raiz: checkout CRLF permitido por `.gitattributes` no runner Windows;
+- correção: `* text=auto eol=lf`, sem alterar formatter ou código funcional;
+- clone cache-cold com `core.autocrlf=true`: **PASS**;
+- Review técnico: **PASS**;
+- Review de arquitetura: **PASS**;
+- Review de segurança/regressão/release: **PASS**;
+- CI final do SHA `12aa949`: Ubuntu **PASS**, Windows **PASS**;
+- Foundation Software: **ACCEPTED**.
 
 ### SSE terminal integrity re-review
 
@@ -136,7 +151,7 @@ A ata consolidada está em `docs/reviews/foundation-remediation-2026-09-03.md`.
 - Review #2 arquitetura: **PASS / GO**, sem nova dependência, contrato ou vazamento de infraestrutura;
 - Review #3 segurança/regressão/release: **PASS / GO**, após testes adversariais de terminal, usage, rollback e configuração;
 - clone limpo de `17aa480`: **PASS**, com frozen install, 8 testes Vitest, 23 runtime, 11 builds, coverage, audit, secret scan e smoke;
-- estado remoto: **NO-GO** até push autorizado e CI Ubuntu/Windows do novo SHA.
+- estado remoto naquele checkpoint: **NO-GO** até push autorizado e CI Ubuntu/Windows do novo SHA; superseded pela seção de aceitação remota abaixo.
 
 ## Problems Found
 
@@ -159,10 +174,11 @@ A ata consolidada está em `docs/reviews/foundation-remediation-2026-09-03.md`.
 - `finish_reason` externo não possuía narrowing em runtime;
 - endpoint local IPv6 válido era rejeitado por comparação com hostname entre colchetes;
 - README e DEVELOPMENT misturavam comandos POSIX com instruções destinadas também ao Windows.
+- checkout Windows convertia os textos para CRLF e fazia o formatter remoto divergir do Linux.
 
 ## Problems Fixed
 
-Os defeitos funcionais receberam correção e regressão automatizada aplicável. O hardening SSE e IPv6 passou por três revisões independentes e por clone limpo do commit `17aa480`. A aceitação permanece `NO-GO` somente no gate remoto até push autorizado e CI. O fallback não foi falsamente implementado: a flag e as alegações foram removidas, e a capacidade permanece `PLANNED`.
+Os defeitos funcionais receberam correção e regressão automatizada aplicável. O hardening SSE e IPv6 passou por três revisões independentes e por clone limpo. A divergência CRLF do CI Windows foi corrigida na política Git e validada novamente em clone limpo e nos dois runners remotos. O fallback não foi falsamente implementado: a flag e as alegações foram removidas, e a capacidade permanece `PLANNED`.
 
 ## Known Limitations
 
@@ -198,9 +214,9 @@ Os 23 testes de integração terminam em cerca de 0,20 s neste runner sem GPU. I
 
 ## AMD Hardware Status
 
-**DONE:** perfil Ryzen 5 9600X + RX 9060 XT 16 GB e runtimes desacoplados de fabricante.
+**PASS:** Ryzen 5 9600X, 31,11 GB de RAM e RX 9060 XT detectados no Windows build 19045. Ollama 0.33.2 carregou `qwen3.5:4b` 100% na GPU discreta por ROCm `gfx1200`, com 15,9 GiB de VRAM reportados pelo runtime.
 
-**BLOCKED:** driver, Ollama/llama.cpp, backend efetivo, modelo, TTFT, tokens/s, RAM e VRAM não foram validados na máquina-alvo.
+**IN PROGRESS:** TTFT, tokens/s, consumo de RAM, estabilidade, lifecycle do JARBAS e candidatos adicionais ainda não foram validados pelo harness versionado. llama.cpp permanece `NOT TESTED`.
 
 ## NVIDIA Migration Readiness
 
@@ -210,8 +226,8 @@ Os 23 testes de integração terminam em cerca de 0,20 s neste runner sem GPU. I
 
 ## Current Project Status
 
-- Foundation software baseline: **PASS LOCAL / NO-GO até push e CI Ubuntu/Windows do SHA final**;
-- Milestone 1 com LLM real no hardware-alvo: **IN PROGRESS / BLOCKED EXTERNALLY**;
+- Foundation software baseline: **DONE / ACCEPTED no SHA remoto `12aa949`**;
+- Milestone 1 com LLM real no hardware-alvo: **IN PROGRESS**;
 - visão completa do Prompt Mestre: **aproximadamente 10%**;
 - próximo milestone de produto: Persistent Memory, após aceitação do runtime/modelo real.
 
@@ -225,12 +241,10 @@ Os 23 testes de integração terminam em cerca de 0,20 s neste runner sem GPU. I
 
 ## Next Steps
 
-1. revalidar Git hygiene e o clone limpo após este commit documental;
-2. obter autorização explícita para o conjunto exato de commits e disponibilizar credencial ao Git nativo;
-3. publicar e exigir CI verde em Ubuntu e Windows para o novo HEAD remoto;
-4. executar `pnpm hardware:detect` na máquina-alvo;
-5. instalar runtime AMD compatível e baixar apenas os candidatos iniciais;
-6. executar `pnpm benchmark:model` por runtime/modelo;
-7. registrar AMD baseline e selecionar `MODEL_FAST`/`MODEL_PRIMARY` provisórios;
-8. aceitar formalmente o Milestone 1;
-9. iniciar Persistent Memory com TurnExecutor e recuperação de turnos interrompidos.
+1. publicar o harness revisado e validar o novo SHA no CI Ubuntu/Windows;
+2. executar `pnpm benchmark:model` para `qwen3.5:4b` na RX 9060 XT;
+3. validar streaming, cancelamento, disconnect, timeout, health e persistência reais;
+4. comparar Qwen3.5 9B, Ministral 3 8B e um controle llama.cpp;
+5. registrar AMD baseline e selecionar `MODEL_FAST`/`MODEL_PRIMARY` provisórios;
+6. aceitar formalmente o Milestone 1;
+7. iniciar Persistent Memory com TurnExecutor e recuperação de turnos interrompidos.

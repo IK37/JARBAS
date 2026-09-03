@@ -117,10 +117,10 @@ Configurações locais podem usar variáveis de ambiente como `JARBAS_PROVIDER`,
 
 ## Estado atual
 
-**PASS LOCAL:** a Foundation para chat local passou pelo Reproducibility Gate em clone limpo após o hardening do protocolo SSE. As três revisões independentes foram concluídas e 31 testes automatizados passaram. A aceitação de software ainda depende do push do HEAD final e do CI remoto verde em Ubuntu e Windows.
+**FOUNDATION SOFTWARE — ACCEPTED:** o SHA `12aa949` passou pelo Reproducibility Gate em clone limpo, pelas três revisões independentes e pelo CI remoto em Ubuntu e Windows. Os 31 testes automatizados, coverage, security scan e smoke passaram nos dois runners.
 
 **IN PROGRESS:** aceitação do Milestone 1 com um LLM real no hardware-alvo.
 
-**BLOCKED:** benchmark real de GPU/modelos precisa ser executado na RX 9060 XT. Fallback de runtime continua planejado e não é declarado como implementado.
+**AMD RUNTIME PASS / BENCHMARK IN PROGRESS:** Ollama 0.33.2 executou `qwen3.5:4b` 100% na RX 9060 XT via ROCm. A aceitação do Milestone 1 ainda depende do benchmark versionado e dos testes reais de streaming, cancelamento, timeout e persistência. Fallback continua planejado.
 
 **NEXT:** memória persistente auditável após a aceitação de hardware, sem acoplar o novo módulo ao runtime de GPU.

@@ -201,3 +201,29 @@ O adapter confundia EOF do transporte com conclusão semântica do protocolo. Al
 - snapshot commitado `17aa480`: 8 testes Vitest, 23 testes runtime e 11 builds **PASS**;
 - clone limpo de `17aa480`: frozen install, dependências explícitas, formatter, lint, typecheck, testes, coverage, audit, secret scan, smoke e builds ignorados **PASS**;
 - release: **NO-GO** até push autorizado e CI Ubuntu/Windows do SHA final.
+
+## Remote Acceptance
+
+O histórico foi publicado sem reescrita. O SHA local e o remoto foram verificados como
+`12aa9495c62e3af061258e1f3b921046d4ee7d27`.
+
+O primeiro workflow remoto da remediação passou no Ubuntu, mas falhou no formatter do
+Windows. O conteúdo estava correto no índice Git; o checkout Windows convertia os arquivos
+para CRLF porque `.gitattributes` declarava apenas `* text=auto`. O ambiente Linux não
+reproduzia a conversão e, por isso, não detectou a falha antes do push.
+
+A correção mínima foi fixar LF para arquivos de texto com `* text=auto eol=lf`. Não houve
+reformatação em massa, mudança de Prettier nem exceção específica de CI. Três revisores
+independentes confirmaram que os 126 arquivos rastreados eram texto, que não existiam
+scripts Windows ou binários exigindo exceção e que a mudança não alterava a arquitetura.
+
+Um clone cache-cold configurado com `core.autocrlf=true` confirmou `w/lf` e passou por
+frozen install, formatter, lint, typecheck, 31 testes, coverage, build de 11 projetos,
+audit, secret scan e smoke. O workflow remoto do SHA `12aa949` repetiu os gates e concluiu:
+
+- Ubuntu 24.04: **PASS**;
+- Windows: **PASS**;
+- Reproducibility Gate: **PASS**;
+- Foundation Software: **ACCEPTED**.
+
+O LLM local real permanece um gate separado e ainda não foi aceito por este resultado.
