@@ -94,6 +94,7 @@ Configuração, contratos, application, API/UI, provider OpenAI-compatible, rout
 - cobertura unitária: 81,1% statements/lines, 66,66% branches e 100% functions no escopo `domain` + `security`;
 - os resultados verdes anteriores ao incidente foram obtidos em ambiente incremental e permanecem apenas como histórico;
 - o snapshot `17aa480` passou por clone Git limpo com os 31 testes existentes naquele checkpoint, sem artefatos ou links residuais;
+- o novo harness no SHA `39b67ba` passou por outro clone Git limpo, frozen install, 49 testes, coverage, security scan e smoke;
 - smoke real: processo separado, health, same-origin, sessão, NDJSON, persistência, 404 e shutdown IPC.
 
 ## Review Passes

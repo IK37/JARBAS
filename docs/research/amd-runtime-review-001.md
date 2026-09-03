@@ -106,6 +106,7 @@ Após as correções:
 - 8 testes Vitest + 41 testes runtime: **PASS**;
 - formatter, lint, TypeScript strict e 11 builds: **PASS**;
 - coverage, audit, secret scan, smoke e `git diff --check`: **PASS**.
+- clone novo do SHA `39b67ba`, frozen install e sequência completa: **PASS**.
 
 O PASS autoriza commit e validação remota do harness. Não substitui o benchmark real.
 
