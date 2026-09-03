@@ -15,7 +15,19 @@ corepack pnpm check
 corepack pnpm test:coverage
 corepack pnpm security:scan
 corepack pnpm smoke
+```
+
+Para iniciar o provider mock em Bash/Zsh:
+
+```bash
 JARBAS_PROVIDER=mock-local corepack pnpm start
+```
+
+Em PowerShell:
+
+```powershell
+$env:JARBAS_PROVIDER = "mock-local"
+corepack pnpm start
 ```
 
 Use `corepack pnpm` para respeitar a versão exata declarada em `packageManager`. A configuração do workspace rejeita outra versão, autoriza somente o lifecycle script revisado do `esbuild` e falha se uma nova dependência tentar executar script sem aprovação explícita.

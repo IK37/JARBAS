@@ -8,9 +8,9 @@
 
 **IN PROGRESS:** a Foundation possui a implementação funcional, mas sua aceitação de software foi reaberta após uma instalação limpa revelar dependências workspace implícitas no harness de testes.
 
-**DONE:** defeitos encontrados por três revisões independentes foram reproduzidos e corrigidos: bloqueio da própria UI por Origin, erros depois dos headers, corrida de turnos, respostas parciais após cancelamento, perda de token usage, lock após desconexão, usage inválido, IPv6 loopback e gates incompletos.
+**DONE:** defeitos encontrados por revisões independentes foram reproduzidos e corrigidos: bloqueio da própria UI por Origin, erros depois dos headers, corrida de turnos, respostas parciais após cancelamento, EOF SSE prematuro, `finish_reason` inválido, perda de token usage, lock após desconexão, validação IPv6 loopback e gates incompletos.
 
-**REPRODUCIBILITY PASS LOCAL:** a versão documental pré-remediação, preservada na ref local de recuperação, não era reproduzível. O snapshot local corrigido foi clonado sem `node_modules`, `dist`, coverage ou dados anteriores e passou por frozen install, gates completos e três reviews independentes.
+**REPRODUCIBILITY PASS LOCAL — SNAPSHOT ANTERIOR:** a versão documental pré-remediação, preservada na ref local de recuperação, não era reproduzível. O snapshot local corrigido foi clonado sem `node_modules`, `dist`, coverage ou dados anteriores e passou por frozen install e gates completos. A revisão de release posterior reabriu o gate ao encontrar um EOF SSE tratado incorretamente como conclusão; a correção atual ainda precisa do clone limpo final.
 
 **PUSH BLOCKED:** o branch local está seis commits à frente de `origin/feat/foundation-001`. O push HTTPS autorizado falhou porque o ambiente não possui credencial GitHub para Git nativo. O conector GitHub enxerga o repositório, mas não foi usado para recriar commits via API porque isso produziria SHAs diferentes e divergência de histórico.
 
@@ -87,11 +87,11 @@ Configuração, contratos, application, API/UI, provider OpenAI-compatible, rout
 ## Tests
 
 - 8 testes Vitest de domínio e Policy Engine;
-- 16 testes nativos de Foundation/integração;
-- 24 cenários automatizados no total;
+- 23 testes nativos de Foundation/integração no worktree atual;
+- 31 cenários automatizados no total;
 - cobertura unitária: 81,1% statements/lines, 66,66% branches e 100% functions no escopo `domain` + `security`;
 - os resultados verdes anteriores foram obtidos em ambiente incremental e permanecem apenas como histórico;
-- um clone Git limpo passou por frozen install, Prettier, ESLint, TypeScript, build, 24 testes, coverage, audit, secret scan e smoke;
+- o snapshot anterior passou por clone Git limpo com 24 testes; as sete novas regressões aguardam o clone final;
 - smoke real: processo separado, health, same-origin, sessão, NDJSON, persistência, 404 e shutdown IPC.
 
 ## Review Passes
@@ -124,6 +124,16 @@ A ata consolidada está em `docs/reviews/foundation-remediation-2026-09-03.md`.
 - CI da remediação: **NOT RUN**; o CI #9 verde pertence ao remoto antigo;
 - release: **NO-GO** até push e CI Ubuntu/Windows da remediação.
 
+### SSE terminal integrity re-review
+
+- Review #3 adversarial: **FAIL** ao reproduzir EOF sem `[DONE]`/`finish_reason` persistido como resposta concluída;
+- correção: o adapter exige marcador terminal explícito e rejeita tipo inválido em `finish_reason`;
+- regressões: `[DONE]` isolado, `finish_reason` sem `[DONE]`, usage após finish, tipo inválido, EOF prematuro e rollback da application;
+- IPv6: endpoint local `[::1]` agora é normalizado no validador de runtime;
+- validação externa: o chunk SSE completo agora passa por narrowing estrutural antes de gerar eventos;
+- estado terminal: choices posteriores ao `finish_reason` são rejeitadas; somente chunks sem choices podem complementar usage;
+- estado atual: **IN PROGRESS**, 8 testes Vitest e 23 runtime aguardam revalidação após o último hardening; re-reviews e clone limpo final ainda são obrigatórios.
+
 ## Problems Found
 
 - UI oficial rejeitava a própria origem;
@@ -141,10 +151,14 @@ A ata consolidada está em `docs/reviews/foundation-remediation-2026-09-03.md`.
 - dependências do harness root estavam implícitas e mascaradas por links residuais;
 - coverage possuía threshold local, mas não era executada pelo CI;
 - o lifecycle script do `esbuild` não possuía decisão versionada.
+- EOF SSE sem marcador terminal era convertido em `done/unknown` e persistia conteúdo parcial;
+- `finish_reason` externo não possuía narrowing em runtime;
+- endpoint local IPv6 válido era rejeitado por comparação com hostname entre colchetes;
+- README e DEVELOPMENT misturavam comandos POSIX com instruções destinadas também ao Windows.
 
 ## Problems Fixed
 
-Os defeitos funcionais receberam correção e regressão automatizada aplicável. A remediação de reprodutibilidade e as três revisões passaram localmente; a aceitação permanece `IN PROGRESS` até autenticar o push e concluir o CI remoto. O fallback não foi falsamente implementado: a flag e as alegações foram removidas, e a capacidade permanece `PLANNED`.
+Os defeitos funcionais receberam correção e regressão automatizada aplicável. O hardening SSE e IPv6 passou nos gates do worktree, mas a aceitação permanece `IN PROGRESS` até concluir re-reviews, clone limpo, commit, push e CI remoto. O fallback não foi falsamente implementado: a flag e as alegações foram removidas, e a capacidade permanece `PLANNED`.
 
 ## Known Limitations
 
@@ -176,7 +190,7 @@ O Policy Engine é `EXPERIMENTAL` e não está aprovado para autorizar ferrament
 
 ## Performance
 
-Os 16 testes de integração terminam em cerca de 0,20 s neste runner sem GPU. Isso mede apenas a Foundation. Não é previsão de desempenho de LLM.
+Os 23 testes de integração terminam em cerca de 0,20 s neste runner sem GPU. Isso mede apenas a Foundation. Não é previsão de desempenho de LLM.
 
 ## AMD Hardware Status
 
@@ -192,7 +206,7 @@ Os 16 testes de integração terminam em cerca de 0,20 s neste runner sem GPU. I
 
 ## Current Project Status
 
-- Foundation software baseline: **REPRODUCIBILITY + TRIPLE REVIEW + FINAL SHA PASS LOCAL / NO-GO até push e CI**;
+- Foundation software baseline: **HARDENING SSE EM REVALIDAÇÃO / NO-GO até clone final, push e CI**;
 - Milestone 1 com LLM real no hardware-alvo: **IN PROGRESS / BLOCKED EXTERNALLY**;
 - visão completa do Prompt Mestre: **aproximadamente 10%**;
 - próximo milestone de produto: Persistent Memory, após aceitação do runtime/modelo real.
@@ -207,10 +221,12 @@ Os 16 testes de integração terminam em cerca de 0,20 s neste runner sem GPU. I
 
 ## Next Steps
 
-1. disponibilizar credencial GitHub ao Git nativo ou executar o push dos commits locais;
-2. exigir CI verde em Ubuntu e Windows para o novo head remoto;
-3. executar `pnpm hardware:detect` na máquina-alvo;
-4. instalar runtime AMD compatível e baixar apenas os candidatos iniciais;
-5. executar `pnpm benchmark:model` por runtime/modelo;
-6. registrar AMD baseline e selecionar `MODEL_FAST`/`MODEL_PRIMARY` provisórios;
-7. iniciar Milestone 2 — Persistent Memory.
+1. concluir re-reviews e clone limpo do hardening SSE/IPv6;
+2. criar commits lógicos e revalidar Git hygiene;
+3. disponibilizar credencial GitHub ao Git nativo ou executar o push autorizado;
+4. exigir CI verde em Ubuntu e Windows para o novo head remoto;
+5. executar `pnpm hardware:detect` na máquina-alvo;
+6. instalar runtime AMD compatível e baixar apenas os candidatos iniciais;
+7. executar `pnpm benchmark:model` por runtime/modelo;
+8. registrar AMD baseline e selecionar `MODEL_FAST`/`MODEL_PRIMARY` provisórios;
+9. iniciar Milestone 2 — Persistent Memory.

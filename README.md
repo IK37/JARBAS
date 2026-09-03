@@ -92,23 +92,32 @@ corepack pnpm smoke
 
 ### Executar com Ollama local
 
+O artifact abaixo permanece candidato e precisa ser confirmado durante a revisão de runtime no hardware AMD antes de ser tratado como suportado:
+
 ```bash
 ollama pull qwen3.5:4b
-pnpm build
-pnpm start
+corepack pnpm build
+corepack pnpm start
 ```
 
-Abra `http://127.0.0.1:8787`. Para validar sem pesos:
+Abra `http://127.0.0.1:8787`. Para validar sem pesos em Bash/Zsh:
 
 ```bash
-JARBAS_PROVIDER=mock-local pnpm start
+JARBAS_PROVIDER=mock-local corepack pnpm start
+```
+
+Em PowerShell:
+
+```powershell
+$env:JARBAS_PROVIDER = "mock-local"
+corepack pnpm start
 ```
 
 Configurações locais podem usar variáveis de ambiente como `JARBAS_PROVIDER`, `JARBAS_PRESET`, `JARBAS_DATABASE_PATH`, `JARBAS_SERVER_HOST` e `JARBAS_SERVER_PORT`.
 
 ## Estado atual
 
-**IN PROGRESS:** implementação da Foundation para chat local passou pelo Reproducibility Gate e pelas três revisões locais. A aceitação de software ainda depende do clone do commit final e do CI remoto Ubuntu/Windows.
+**IN PROGRESS:** implementação da Foundation para chat local passou pelo Reproducibility Gate em clone limpo. A revisão de release encontrou um EOF SSE prematuro que persistia conteúdo parcial; a correção está em revalidação. A aceitação de software ainda depende das três re-revisões e do CI remoto Ubuntu/Windows.
 
 **IN PROGRESS:** aceitação do Milestone 1 com um LLM real no hardware-alvo.
 

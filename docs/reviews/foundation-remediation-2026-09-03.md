@@ -153,7 +153,7 @@ Um `node_modules` incremental que já continha `esbuild` ignorado falhou correta
 
 O release passa a exigir Reproducibility Gate em checkout limpo, frozen lockfile, validação de dependências do harness e matriz remota completa. Links manuais, cache e `dist` anterior não são evidência válida.
 
-### Current Verdict
+### Verdict before SSE adversarial review
 
 **Reproducibility Gate local: PASS.** Um clone Git sem `node_modules`, `dist`, coverage ou dados anteriores passou por frozen install, 8 testes Vitest, build de 11 projetos, 16 testes runtime, coverage, audit, secret scan, smoke e verificação de builds ignorados.
 
@@ -170,3 +170,33 @@ O release passa a exigir Reproducibility Gate em checkout limpo, frozen lockfile
 **CI da remediação: NOT RUN.** O remoto permanece em `1c2453b`; o CI #9 verde pertence ao estado anterior e não valida as correções atuais.
 
 **Release: NO-GO** até preservar os commits locais no push e obter CI remoto verde em Ubuntu e Windows.
+
+## SSE Terminal Integrity Re-review
+
+Uma revisão adversarial posterior invalidou novamente o `Review #3: PASS` como evidência de release. O adapter OpenAI-compatible emitia `done/unknown` quando o upstream encerrava o stream após conteúdo parcial, mesmo sem `[DONE]` ou `finish_reason`. A application aceitava o evento terminal e persistia a resposta truncada.
+
+### Root Cause
+
+O adapter confundia EOF do transporte com conclusão semântica do protocolo. Além disso, `finish_reason` vinha de JSON externo por cast TypeScript, sem validação de tipo em runtime.
+
+### Fix and Regression Prevention
+
+- exigir `[DONE]` ou `finish_reason` explícito antes de emitir `done`;
+- aceitar string desconhecida como `unknown`, mas rejeitar valores vazios ou de outro tipo;
+- preservar usage que chegar após o chunk com `finish_reason`;
+- testar `[DONE]` isolado, finish sem `[DONE]`, finish inválido e EOF prematuro;
+- validar estruturalmente `choices`, `delta`, `content` e `usage` antes de emitir eventos;
+- rejeitar conteúdo de token que não seja string;
+- após `finish_reason`, aceitar apenas chunks sem choices para preservar usage e rejeitar conteúdo adicional;
+- testar separadamente que a application remove o turno e registra métrica `failed` quando o provider termina sem evento terminal;
+- normalizar `[::1]` na validação de endpoint local e cobrir com regressão;
+- separar comandos Bash/Zsh e PowerShell na documentação de desenvolvimento.
+
+### Current Revalidation
+
+- Review #1 inicial: **FAIL** para `finish_reason` truthy de tipo inválido; narrowing adicionado;
+- Review #2: **PASS arquitetural**, com TurnExecutor/atomicidade mantidos como dívida obrigatória antes de Memory;
+- Review #3: correção funcional **PASS**, documentação **FAIL** antes desta atualização;
+- worktree: 8 testes Vitest e 23 testes runtime aguardam revalidação após o hardening de estado terminal;
+- clone limpo do novo snapshot: **PENDING**;
+- release: **NO-GO** até re-reviews finais, clone limpo, commit, push e CI Ubuntu/Windows.
