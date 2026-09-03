@@ -22,7 +22,8 @@ jobs:
         with:
           node-version: 24
       - run: corepack enable
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm check
-      - run: pnpm security:scan
-      - run: pnpm smoke
+      - run: corepack pnpm install --frozen-lockfile
+      - run: corepack pnpm check
+      - run: corepack pnpm test:coverage
+      - run: corepack pnpm security:scan
+      - run: corepack pnpm smoke
