@@ -1,0 +1,143 @@
+{
+  "models": [
+    {
+      "id": "qwen35-4b-q4km",
+      "runtimeModels": {
+        "ollama-local": "qwen3.5:4b",
+        "llama-cpp-local": "models/qwen3.5-4b-q4_k_m.gguf",
+        "nvidia-local": "Qwen/Qwen3.5-4B"
+      },
+      "roles": ["fast", "primary", "reasoning", "coding", "vision"],
+      "parameterScale": "4B",
+      "quantization": "Q4_K_M",
+      "contextWindow": 262144,
+      "defaultContextTokens": 16384,
+      "license": "Apache-2.0",
+      "source": "https://huggingface.co/Qwen/Qwen3.5-4B",
+      "status": "candidate",
+      "localBenchmarkStatus": "not_benchmarked"
+    },
+    {
+      "id": "qwen35-9b-q4km",
+      "runtimeModels": {
+        "ollama-local": "qwen3.5:9b",
+        "llama-cpp-local": "models/qwen3.5-9b-q4_k_m.gguf",
+        "nvidia-local": "Qwen/Qwen3.5-9B"
+      },
+      "roles": ["primary", "reasoning", "coding", "vision"],
+      "parameterScale": "9B",
+      "quantization": "Q4_K_M",
+      "contextWindow": 262144,
+      "defaultContextTokens": 32768,
+      "license": "Apache-2.0",
+      "source": "https://huggingface.co/Qwen/Qwen3.5-9B",
+      "status": "candidate",
+      "localBenchmarkStatus": "not_benchmarked"
+    },
+    {
+      "id": "ministral3-8b-q4km",
+      "runtimeModels": {
+        "ollama-local": "ministral-3:8b",
+        "llama-cpp-local": "models/ministral-3-8b-q4_k_m.gguf",
+        "nvidia-local": "mistralai/Ministral-3-8B-Instruct-2512"
+      },
+      "roles": ["primary", "reasoning", "vision"],
+      "parameterScale": "8.8B",
+      "quantization": "Q4_K_M",
+      "contextWindow": 262144,
+      "defaultContextTokens": 32768,
+      "license": "Apache-2.0",
+      "source": "https://huggingface.co/mistralai/Ministral-3-8B-Instruct-2512",
+      "status": "candidate",
+      "localBenchmarkStatus": "not_benchmarked"
+    },
+    {
+      "id": "qwen3-embedding-06b",
+      "runtimeModels": {
+        "ollama-local": "qwen3-embedding:0.6b",
+        "nvidia-local": "Qwen/Qwen3-Embedding-0.6B"
+      },
+      "roles": ["embedding"],
+      "parameterScale": "0.6B",
+      "quantization": "FP16 or measured quantization",
+      "contextWindow": 32768,
+      "defaultContextTokens": 8192,
+      "license": "Apache-2.0",
+      "source": "https://huggingface.co/Qwen/Qwen3-Embedding-0.6B",
+      "status": "candidate",
+      "localBenchmarkStatus": "not_benchmarked"
+    },
+    {
+      "id": "qwen3-reranker-06b",
+      "runtimeModels": {
+        "nvidia-local": "Qwen/Qwen3-Reranker-0.6B"
+      },
+      "roles": ["reranking"],
+      "parameterScale": "0.6B",
+      "quantization": "FP16",
+      "contextWindow": 32768,
+      "defaultContextTokens": 8192,
+      "license": "Apache-2.0",
+      "source": "https://huggingface.co/Qwen/Qwen3-Reranker-0.6B",
+      "status": "candidate",
+      "localBenchmarkStatus": "not_benchmarked"
+    }
+  ],
+  "presets": [
+    {
+      "id": "fast",
+      "routes": {
+        "simple_conversation": "qwen35-4b-q4km",
+        "deep_reasoning": "qwen35-9b-q4km",
+        "coding": "qwen35-9b-q4km",
+        "memory_extraction": "qwen35-4b-q4km",
+        "summarization": "qwen35-4b-q4km",
+        "tool_selection": "qwen35-4b-q4km"
+      }
+    },
+    {
+      "id": "balanced",
+      "routes": {
+        "simple_conversation": "qwen35-4b-q4km",
+        "deep_reasoning": "qwen35-9b-q4km",
+        "coding": "qwen35-9b-q4km",
+        "memory_extraction": "qwen35-4b-q4km",
+        "summarization": "qwen35-4b-q4km",
+        "tool_selection": "qwen35-4b-q4km"
+      }
+    },
+    {
+      "id": "quality",
+      "routes": {
+        "simple_conversation": "qwen35-9b-q4km",
+        "deep_reasoning": "qwen35-9b-q4km",
+        "coding": "qwen35-9b-q4km",
+        "memory_extraction": "qwen35-4b-q4km",
+        "summarization": "qwen35-9b-q4km",
+        "tool_selection": "qwen35-9b-q4km"
+      }
+    },
+    {
+      "id": "low_memory",
+      "routes": {
+        "simple_conversation": "qwen35-4b-q4km",
+        "deep_reasoning": "qwen35-4b-q4km",
+        "coding": "qwen35-4b-q4km",
+        "memory_extraction": "qwen35-4b-q4km",
+        "summarization": "qwen35-4b-q4km",
+        "tool_selection": "qwen35-4b-q4km"
+      }
+    },
+    {
+      "id": "offline",
+      "routes": {
+        "simple_conversation": "qwen35-4b-q4km",
+        "deep_reasoning": "qwen35-9b-q4km",
+        "coding": "qwen35-9b-q4km",
+        "memory_extraction": "qwen35-4b-q4km",
+        "summarization": "qwen35-4b-q4km",
+        "tool_selection": "qwen35-4b-q4km"
+      }
+    }
+  ]
+}

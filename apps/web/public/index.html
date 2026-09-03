@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="description" content="Interface local da JARBAS Foundation" />
+    <link rel="stylesheet" href="/styles.css" />
+    <title>JARBAS</title>
+  </head>
+  <body>
+    <main class="shell">
+      <header>
+        <div>
+          <p class="eyebrow">SISTEMA COGNITIVO LOCAL</p>
+          <h1>JARBAS <span>Foundation</span></h1>
+        </div>
+        <div class="status loading" id="system-status">
+          <i></i><span>iniciando</span>
+        </div>
+      </header>
+      <section class="workspace">
+        <aside>
+          <p class="section-label">CONTEXTO</p>
+          <h2>JARBAS Development</h2>
+          <p>A primeira sessão persistente do laboratório pessoal.</p>
+          <dl>
+            <div>
+              <dt>Runtime</dt>
+              <dd id="runtime">—</dd>
+            </div>
+            <div>
+              <dt>Preset</dt>
+              <dd id="preset">—</dd>
+            </div>
+            <div>
+              <dt>Rede</dt>
+              <dd id="network">—</dd>
+            </div>
+          </dl>
+          <p class="section-label diagnostics">DIAGNÓSTICO</p>
+          <div id="components"></div>
+        </aside>
+        <section class="chat">
+          <div class="timeline" id="timeline">
+            <div class="welcome" id="welcome">
+              <span>01</span>
+              <h2>Base operacional pronta.</h2>
+              <p>
+                Converse com o runtime local. Sessão, rota, métricas e resposta
+                serão persistidas.
+              </p>
+            </div>
+          </div>
+          <form id="chat-form">
+            <p class="error" id="error" hidden></p>
+            <div class="composer">
+              <textarea
+                aria-label="Mensagem"
+                id="message"
+                placeholder="O que vamos construir?"
+              ></textarea>
+              <button disabled id="send" type="submit">Enviar</button>
+              <button hidden id="stop" type="button">Parar</button>
+            </div>
+            <small>Enter para enviar · Shift + Enter para nova linha</small>
+          </form>
+        </section>
+      </section>
+    </main>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,24 @@
+{
+  "hardwareProfiles": [
+    {
+      "id": "amd_current",
+      "label": "AMD current — Phase A",
+      "phase": "current",
+      "cpu": "AMD Ryzen 5 9600X",
+      "gpu": "AMD Radeon RX 9060 XT",
+      "vramGb": 16,
+      "ramGb": 32,
+      "preferredBackends": ["rocm", "vulkan", "cpu"]
+    },
+    {
+      "id": "nvidia_future",
+      "label": "NVIDIA future — Phase B",
+      "phase": "future",
+      "cpu": "AMD Ryzen 7 9800X3D",
+      "gpu": "NVIDIA GeForce RTX 5070 Ti",
+      "vramGb": 16,
+      "ramGb": 32,
+      "preferredBackends": ["cuda", "vulkan", "cpu"]
+    }
+  ]
+}

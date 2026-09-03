@@ -1,4 +1,4 @@
-# Project JARVIS — Personal R&D OS
+# JARBAS — Personal Cognitive R&D OS
 
 Um sistema operacional pessoal de P&D que transforma ideias dispersas em projetos concluídos, preserva decisões, encontra conexões e recomenda o próximo experimento com evidências.
 
@@ -14,7 +14,22 @@ O loop principal é:
 ideia → hipótese → pesquisa → decisão → experimento → resultado → aprendizado
 ```
 
-## MVP
+## Foundation executável
+
+A Foundation V1 agora contém:
+
+- API HTTP local vinculada a `127.0.0.1`;
+- interface web com streaming e cancelamento;
+- janela de contexto determinística e limites configuráveis de entrada/saída;
+- abstrações de modelo/runtime e provider OpenAI-compatible;
+- Model Router configurável e provider determinístico de desenvolvimento;
+- SQLite com migrations, sessões, mensagens e métricas;
+- proteção contra turnos concorrentes e descarte de respostas parciais;
+- health checks separados para aplicação, storage, runtime e modelo;
+- logs JSON com redação e sem conteúdo de conversa;
+- presets AMD atual e NVIDIA futuro.
+
+## Produto-alvo
 
 - Project Memory com origem, confiança e correção.
 - Decision Ledger com alternativas e motivos.
@@ -29,19 +44,30 @@ Ficam fora do MVP: captura contínua de tela/microfone, shell arbitrário, compr
 
 Começamos como um **monólito modular local-first**. O LLM propõe; componentes determinísticos validam e executam.
 
-```text
-Interface → Application Core → Intelligence → Policy Engine → Executor → Receipt
-                    ↕                 ↕
-              Project State      Memory / Evidence
+```mermaid
+flowchart LR
+    UI["Web / futuro desktop"] --> API["API local"]
+    API --> APP["Application Core"]
+    APP --> MODEL["Router + Providers"]
+    APP --> DATA["SQLite"]
+    MODEL --> RUNTIME["Ollama · llama.cpp · CUDA"]
 ```
 
-Veja [docs/architecture/overview.md](docs/architecture/overview.md), [docs/product/product-brief.md](docs/product/product-brief.md), [docs/security/threat-model.md](docs/security/threat-model.md) e a [Project Discovery Meeting #001](docs/research/discovery-meeting-001.md).
+Veja a [Model & AI Stack Review #001](docs/research/model-ai-stack-review-001.md), [arquitetura](docs/architecture/overview.md), [roadmap](docs/product/roadmap.md), [segurança](docs/security/threat-model.md) e [Project Discovery Meeting #001](docs/research/discovery-meeting-001.md).
 
 ## Estrutura
 
 ```text
-apps/                 produtos executáveis (desktop/API nas próximas iterações)
+apps/api/             API local e servidor da interface
+apps/web/             interface web sem lógica cognitiva
+configs/              runtimes, modelos, hardware e privacidade
 packages/contracts/   contratos tipados e estáveis
+packages/application/ orquestração do caso de uso de chat
+packages/config/      carregamento e validação de configuração
+packages/llm/         providers local/mock/OpenAI-compatible
+packages/routing/     Model Router determinístico
+packages/storage/     SQLite, migrations e sessões
+packages/observability/ logs estruturados e redação
 packages/domain/      regras de projetos, decisões e memória
 packages/security/    política determinística de ações
 docs/                 produto, arquitetura, ciência, segurança e ADRs
@@ -57,10 +83,44 @@ O pedido de revisar o código mais de duas vezes virou três gates verificáveis
 
 ```bash
 corepack enable
-pnpm install
-pnpm check
+corepack pnpm install --frozen-lockfile
+corepack pnpm check
+corepack pnpm test:coverage
+corepack pnpm security:scan
+corepack pnpm smoke
 ```
+
+### Executar com Ollama local
+
+O artifact abaixo permanece candidato e precisa ser confirmado durante a revisão de runtime no hardware AMD antes de ser tratado como suportado:
+
+```bash
+ollama pull qwen3.5:4b
+corepack pnpm build
+corepack pnpm start
+```
+
+Abra `http://127.0.0.1:8787`. Para validar sem pesos em Bash/Zsh:
+
+```bash
+JARBAS_PROVIDER=mock-local corepack pnpm start
+```
+
+Em PowerShell:
+
+```powershell
+$env:JARBAS_PROVIDER = "mock-local"
+corepack pnpm start
+```
+
+Configurações locais podem usar variáveis de ambiente como `JARBAS_PROVIDER`, `JARBAS_PRESET`, `JARBAS_DATABASE_PATH`, `JARBAS_SERVER_HOST` e `JARBAS_SERVER_PORT`.
 
 ## Estado atual
 
-Esta versão funda os contratos do Project Object e do Policy Engine. O roadmap completo está em [docs/product/roadmap.md](docs/product/roadmap.md).
+**FOUNDATION SOFTWARE — ACCEPTED:** o SHA `12aa949` passou pelo Reproducibility Gate em clone limpo, pelas três revisões independentes e pelo CI remoto em Ubuntu e Windows. Os 31 testes automatizados, coverage, security scan e smoke passaram nos dois runners.
+
+**IN PROGRESS:** aceitação do Milestone 1 com um LLM real no hardware-alvo.
+
+**AMD RUNTIME PASS / BENCHMARK IN PROGRESS:** Ollama 0.33.2 executou `qwen3.5:4b` 100% na RX 9060 XT via ROCm. A aceitação do Milestone 1 ainda depende do benchmark versionado e dos testes reais de streaming, cancelamento, timeout e persistência. Fallback continua planejado.
+
+**NEXT:** memória persistente auditável após a aceitação de hardware, sem acoplar o novo módulo ao runtime de GPU.
