@@ -86,7 +86,7 @@ export class JarbasApplication {
         requestId,
         model: route.providerModel,
         messages,
-        signal
+        ...(signal ? { signal } : {})
       })) {
         if (event.type === "token") {
           firstTokenAt ??= performance.now();
