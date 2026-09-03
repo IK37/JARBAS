@@ -19,5 +19,14 @@ jobs:
           node-version: 24
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
-      - run: pnpm check
+      - run: pnpm exec prettier --write .
+      - name: Emit formatter patch
+        run: |
+          echo "JARBAS_FORMAT_PATCH_BEGIN"
+          git diff --binary | base64 -w0
+          echo
+          echo "JARBAS_FORMAT_PATCH_END"
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
       - run: pnpm build
