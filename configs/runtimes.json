@@ -1,0 +1,67 @@
+{
+  "runtimes": [
+    {
+      "id": "mock-local",
+      "kind": "mock",
+      "label": "Deterministic development provider",
+      "local": true,
+      "backend": "mock",
+      "capabilities": {
+        "streaming": true,
+        "structuredOutput": true,
+        "toolCalling": false,
+        "embeddings": false,
+        "vision": false
+      },
+      "requestTimeoutMs": 5000
+    },
+    {
+      "id": "ollama-local",
+      "kind": "openai_compatible",
+      "label": "Ollama local OpenAI-compatible API",
+      "endpoint": "http://127.0.0.1:11434/v1",
+      "local": true,
+      "backend": "auto",
+      "capabilities": {
+        "streaming": true,
+        "structuredOutput": true,
+        "toolCalling": true,
+        "embeddings": true,
+        "vision": true
+      },
+      "requestTimeoutMs": 120000
+    },
+    {
+      "id": "llama-cpp-local",
+      "kind": "openai_compatible",
+      "label": "llama.cpp local server",
+      "endpoint": "http://127.0.0.1:8080/v1",
+      "local": true,
+      "backend": "vulkan",
+      "capabilities": {
+        "streaming": true,
+        "structuredOutput": true,
+        "toolCalling": true,
+        "embeddings": true,
+        "vision": false
+      },
+      "requestTimeoutMs": 120000
+    },
+    {
+      "id": "nvidia-local",
+      "kind": "openai_compatible",
+      "label": "Future CUDA-compatible local endpoint",
+      "endpoint": "http://127.0.0.1:8000/v1",
+      "local": true,
+      "backend": "cuda",
+      "capabilities": {
+        "streaming": true,
+        "structuredOutput": true,
+        "toolCalling": true,
+        "embeddings": true,
+        "vision": true
+      },
+      "requestTimeoutMs": 120000
+    }
+  ]
+}

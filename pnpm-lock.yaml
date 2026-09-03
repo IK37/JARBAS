@@ -31,7 +31,27 @@ importers:
 
   packages/contracts: {}
 
+  packages/config:
+    dependencies:
+      "@jarvis/contracts":
+        specifier: workspace:*
+        version: link:../contracts
+
   packages/domain:
+    dependencies:
+      "@jarvis/contracts":
+        specifier: workspace:*
+        version: link:../contracts
+
+  packages/llm:
+    dependencies:
+      "@jarvis/contracts":
+        specifier: workspace:*
+        version: link:../contracts
+
+  packages/observability: {}
+
+  packages/routing:
     dependencies:
       "@jarvis/contracts":
         specifier: workspace:*
@@ -42,6 +62,50 @@ importers:
       "@jarvis/contracts":
         specifier: workspace:*
         version: link:../contracts
+
+  packages/storage:
+    dependencies:
+      "@jarvis/contracts":
+        specifier: workspace:*
+        version: link:../contracts
+
+  packages/application:
+    dependencies:
+      "@jarvis/contracts":
+        specifier: workspace:*
+        version: link:../contracts
+      "@jarvis/observability":
+        specifier: workspace:*
+        version: link:../observability
+      "@jarvis/routing":
+        specifier: workspace:*
+        version: link:../routing
+      "@jarvis/storage":
+        specifier: workspace:*
+        version: link:../storage
+
+  apps/api:
+    dependencies:
+      "@jarvis/application":
+        specifier: workspace:*
+        version: link:../../packages/application
+      "@jarvis/config":
+        specifier: workspace:*
+        version: link:../../packages/config
+      "@jarvis/contracts":
+        specifier: workspace:*
+        version: link:../../packages/contracts
+      "@jarvis/llm":
+        specifier: workspace:*
+        version: link:../../packages/llm
+      "@jarvis/observability":
+        specifier: workspace:*
+        version: link:../../packages/observability
+      "@jarvis/storage":
+        specifier: workspace:*
+        version: link:../../packages/storage
+
+  apps/web: {}
 
 packages:
   "@esbuild/aix-ppc64@0.28.2":

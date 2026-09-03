@@ -1,0 +1,29 @@
+{
+  "externalDataPolicy": [
+    {
+      "classification": "public",
+      "defaultAction": "allow",
+      "externalAllowed": true
+    },
+    {
+      "classification": "personal",
+      "defaultAction": "confirm",
+      "externalAllowed": true
+    },
+    {
+      "classification": "private",
+      "defaultAction": "confirm",
+      "externalAllowed": true
+    },
+    {
+      "classification": "secret",
+      "defaultAction": "deny",
+      "externalAllowed": false
+    },
+    {
+      "classification": "restricted",
+      "defaultAction": "deny",
+      "externalAllowed": false
+    }
+  ]
+}
