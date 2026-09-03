@@ -117,7 +117,7 @@ Configurações locais podem usar variáveis de ambiente como `JARBAS_PROVIDER`,
 
 ## Estado atual
 
-**IN PROGRESS:** implementação da Foundation para chat local passou pelo Reproducibility Gate em clone limpo. A revisão de release encontrou um EOF SSE prematuro que persistia conteúdo parcial; a correção está em revalidação. A aceitação de software ainda depende das três re-revisões e do CI remoto Ubuntu/Windows.
+**PASS LOCAL:** a Foundation para chat local passou pelo Reproducibility Gate em clone limpo após o hardening do protocolo SSE. As três revisões independentes foram concluídas e 31 testes automatizados passaram. A aceitação de software ainda depende do push do HEAD final e do CI remoto verde em Ubuntu e Windows.
 
 **IN PROGRESS:** aceitação do Milestone 1 com um LLM real no hardware-alvo.
 

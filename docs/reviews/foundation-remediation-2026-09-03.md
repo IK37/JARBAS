@@ -195,8 +195,9 @@ O adapter confundia EOF do transporte com conclusão semântica do protocolo. Al
 ### Current Revalidation
 
 - Review #1 inicial: **FAIL** para `finish_reason` truthy de tipo inválido; narrowing adicionado;
-- Review #2: **PASS arquitetural**, com TurnExecutor/atomicidade mantidos como dívida obrigatória antes de Memory;
-- Review #3: correção funcional **PASS**, documentação **FAIL** antes desta atualização;
-- worktree: 8 testes Vitest e 23 testes runtime aguardam revalidação após o hardening de estado terminal;
-- clone limpo do novo snapshot: **PENDING**;
-- release: **NO-GO** até re-reviews finais, clone limpo, commit, push e CI Ubuntu/Windows.
+- Review #1 final: **PASS / GO**, após narrowing estrutural e regressões de estado terminal;
+- Review #2 final: **PASS / GO arquitetural**, com TurnExecutor/atomicidade mantidos como dívida obrigatória antes de Memory;
+- Review #3 final: **PASS / GO**, após procurar dados pós-terminal, tipos externos inválidos, rollback e regressões de segurança;
+- snapshot commitado `17aa480`: 8 testes Vitest, 23 testes runtime e 11 builds **PASS**;
+- clone limpo de `17aa480`: frozen install, dependências explícitas, formatter, lint, typecheck, testes, coverage, audit, secret scan, smoke e builds ignorados **PASS**;
+- release: **NO-GO** até push autorizado e CI Ubuntu/Windows do SHA final.

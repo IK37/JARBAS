@@ -6,13 +6,13 @@
 
 ## Executive Summary
 
-**IN PROGRESS:** a Foundation possui a implementação funcional, mas sua aceitação de software foi reaberta após uma instalação limpa revelar dependências workspace implícitas no harness de testes.
+**PASS LOCAL / NO-GO REMOTO:** a Foundation possui implementação funcional, dependências workspace explícitas e validação reproduzível em clone limpo. A aceitação de software permanece aberta até o HEAD final ser publicado e passar no CI Ubuntu/Windows.
 
 **DONE:** defeitos encontrados por revisões independentes foram reproduzidos e corrigidos: bloqueio da própria UI por Origin, erros depois dos headers, corrida de turnos, respostas parciais após cancelamento, EOF SSE prematuro, `finish_reason` inválido, perda de token usage, lock após desconexão, validação IPv6 loopback e gates incompletos.
 
-**REPRODUCIBILITY PASS LOCAL — SNAPSHOT ANTERIOR:** a versão documental pré-remediação, preservada na ref local de recuperação, não era reproduzível. O snapshot local corrigido foi clonado sem `node_modules`, `dist`, coverage ou dados anteriores e passou por frozen install e gates completos. A revisão de release posterior reabriu o gate ao encontrar um EOF SSE tratado incorretamente como conclusão; a correção atual ainda precisa do clone limpo final.
+**REPRODUCIBILITY PASS LOCAL — HEAD `17aa480`:** a versão documental pré-remediação, preservada na ref local de recuperação, não era reproduzível. Após corrigir as dependências implícitas e o EOF SSE, o snapshot commitado foi clonado sem `node_modules`, `dist`, coverage ou dados anteriores e passou por frozen install e todos os gates.
 
-**PUSH BLOCKED:** o branch local está seis commits à frente de `origin/feat/foundation-001`. O push HTTPS autorizado falhou porque o ambiente não possui credencial GitHub para Git nativo. O conector GitHub enxerga o repositório, mas não foi usado para recriar commits via API porque isso produziria SHAs diferentes e divergência de histórico.
+**PUSH PENDING AUTHORIZATION/CREDENTIAL:** o branch local ficará dez commits à frente de `origin/feat/foundation-001` após este registro final. Uma autorização anterior se referia a outro conjunto de commits, e o terminal também não possui credencial GitHub para Git nativo. O conector GitHub não foi usado para recriar commits via API porque isso produziria SHAs diferentes e divergência de histórico.
 
 **REMOTE CI NOT VALIDATED:** o remoto permanece em `1c2453b`. O CI #9 está verde, mas pertence ao estado anterior e não constitui evidência para esta remediação. A aceitação continua `NO-GO` até o push e novos jobs Ubuntu/Windows verdes.
 
@@ -90,8 +90,8 @@ Configuração, contratos, application, API/UI, provider OpenAI-compatible, rout
 - 23 testes nativos de Foundation/integração no worktree atual;
 - 31 cenários automatizados no total;
 - cobertura unitária: 81,1% statements/lines, 66,66% branches e 100% functions no escopo `domain` + `security`;
-- os resultados verdes anteriores foram obtidos em ambiente incremental e permanecem apenas como histórico;
-- o snapshot anterior passou por clone Git limpo com 24 testes; as sete novas regressões aguardam o clone final;
+- os resultados verdes anteriores ao incidente foram obtidos em ambiente incremental e permanecem apenas como histórico;
+- o snapshot `17aa480` passou por clone Git limpo com os 31 testes, sem artefatos ou links residuais;
 - smoke real: processo separado, health, same-origin, sessão, NDJSON, persistência, 404 e shutdown IPC.
 
 ## Review Passes
@@ -132,7 +132,11 @@ A ata consolidada está em `docs/reviews/foundation-remediation-2026-09-03.md`.
 - IPv6: endpoint local `[::1]` agora é normalizado no validador de runtime;
 - validação externa: o chunk SSE completo agora passa por narrowing estrutural antes de gerar eventos;
 - estado terminal: choices posteriores ao `finish_reason` são rejeitadas; somente chunks sem choices podem complementar usage;
-- estado atual: **IN PROGRESS**, 8 testes Vitest e 23 runtime aguardam revalidação após o último hardening; re-reviews e clone limpo final ainda são obrigatórios.
+- Review #1 técnico: **PASS / GO**, após corrigir narrowing de `finish_reason`, conteúdo e estado pós-terminal;
+- Review #2 arquitetura: **PASS / GO**, sem nova dependência, contrato ou vazamento de infraestrutura;
+- Review #3 segurança/regressão/release: **PASS / GO**, após testes adversariais de terminal, usage, rollback e configuração;
+- clone limpo de `17aa480`: **PASS**, com frozen install, 8 testes Vitest, 23 runtime, 11 builds, coverage, audit, secret scan e smoke;
+- estado remoto: **NO-GO** até push autorizado e CI Ubuntu/Windows do novo SHA.
 
 ## Problems Found
 
@@ -158,7 +162,7 @@ A ata consolidada está em `docs/reviews/foundation-remediation-2026-09-03.md`.
 
 ## Problems Fixed
 
-Os defeitos funcionais receberam correção e regressão automatizada aplicável. O hardening SSE e IPv6 passou nos gates do worktree, mas a aceitação permanece `IN PROGRESS` até concluir re-reviews, clone limpo, commit, push e CI remoto. O fallback não foi falsamente implementado: a flag e as alegações foram removidas, e a capacidade permanece `PLANNED`.
+Os defeitos funcionais receberam correção e regressão automatizada aplicável. O hardening SSE e IPv6 passou por três revisões independentes e por clone limpo do commit `17aa480`. A aceitação permanece `NO-GO` somente no gate remoto até push autorizado e CI. O fallback não foi falsamente implementado: a flag e as alegações foram removidas, e a capacidade permanece `PLANNED`.
 
 ## Known Limitations
 
@@ -206,7 +210,7 @@ Os 23 testes de integração terminam em cerca de 0,20 s neste runner sem GPU. I
 
 ## Current Project Status
 
-- Foundation software baseline: **HARDENING SSE EM REVALIDAÇÃO / NO-GO até clone final, push e CI**;
+- Foundation software baseline: **PASS LOCAL / NO-GO até push e CI Ubuntu/Windows do SHA final**;
 - Milestone 1 com LLM real no hardware-alvo: **IN PROGRESS / BLOCKED EXTERNALLY**;
 - visão completa do Prompt Mestre: **aproximadamente 10%**;
 - próximo milestone de produto: Persistent Memory, após aceitação do runtime/modelo real.
@@ -221,12 +225,12 @@ Os 23 testes de integração terminam em cerca de 0,20 s neste runner sem GPU. I
 
 ## Next Steps
 
-1. concluir re-reviews e clone limpo do hardening SSE/IPv6;
-2. criar commits lógicos e revalidar Git hygiene;
-3. disponibilizar credencial GitHub ao Git nativo ou executar o push autorizado;
-4. exigir CI verde em Ubuntu e Windows para o novo head remoto;
-5. executar `pnpm hardware:detect` na máquina-alvo;
-6. instalar runtime AMD compatível e baixar apenas os candidatos iniciais;
-7. executar `pnpm benchmark:model` por runtime/modelo;
-8. registrar AMD baseline e selecionar `MODEL_FAST`/`MODEL_PRIMARY` provisórios;
-9. iniciar Milestone 2 — Persistent Memory.
+1. revalidar Git hygiene e o clone limpo após este commit documental;
+2. obter autorização explícita para o conjunto exato de commits e disponibilizar credencial ao Git nativo;
+3. publicar e exigir CI verde em Ubuntu e Windows para o novo HEAD remoto;
+4. executar `pnpm hardware:detect` na máquina-alvo;
+5. instalar runtime AMD compatível e baixar apenas os candidatos iniciais;
+6. executar `pnpm benchmark:model` por runtime/modelo;
+7. registrar AMD baseline e selecionar `MODEL_FAST`/`MODEL_PRIMARY` provisórios;
+8. aceitar formalmente o Milestone 1;
+9. iniciar Persistent Memory com TurnExecutor e recuperação de turnos interrompidos.
