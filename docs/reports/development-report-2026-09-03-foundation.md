@@ -28,14 +28,14 @@
 
 ## Architecture Decisions
 
-| ADR | Decisão | Motivo |
-| --- | --- | --- |
-| 0006 | Windows 11 diário; Ubuntu 24.04 para treino | matrizes oficiais e portabilidade AMD/NVIDIA |
-| 0007 | modelo separado do runtime | migração de GPU sem reescrever o core |
-| 0008 | web estática + API local na V1 | menor dependência e rápida validação |
-| 0009 | SQLite canônico | integridade local sem infraestrutura prematura |
-| 0010 | sem framework multiagente agora | auditabilidade e simplicidade |
-| 0011 | shortlist permanece candidata | benchmark real obrigatório |
+| ADR  | Decisão                                     | Motivo                                         |
+| ---- | ------------------------------------------- | ---------------------------------------------- |
+| 0006 | Windows 11 diário; Ubuntu 24.04 para treino | matrizes oficiais e portabilidade AMD/NVIDIA   |
+| 0007 | modelo separado do runtime                  | migração de GPU sem reescrever o core          |
+| 0008 | web estática + API local na V1              | menor dependência e rápida validação           |
+| 0009 | SQLite canônico                             | integridade local sem infraestrutura prematura |
+| 0010 | sem framework multiagente agora             | auditabilidade e simplicidade                  |
+| 0011 | shortlist permanece candidata               | benchmark real obrigatório                     |
 
 ## Files Created
 
@@ -47,13 +47,13 @@ README, workspace/TypeScript, lockfile, ESLint, arquitetura, roadmap e contratos
 
 ## Models Tested
 
-| Item | Resultado |
-| --- | --- |
-| MockProvider determinístico | LOCAL FOUNDATION TEST — passou |
+| Item                            | Resultado                                            |
+| ------------------------------- | ---------------------------------------------------- |
+| MockProvider determinístico     | LOCAL FOUNDATION TEST — passou                       |
 | Protocolo OpenAI-compatible/SSE | LOCAL FOUNDATION TEST com servidor simulado — passou |
-| Qwen3.5 4B/9B | NOT BENCHMARKED LOCALLY |
-| Ministral 3 8B | NOT BENCHMARKED LOCALLY |
-| Qwen3 Embedding/Reranker | NOT BENCHMARKED LOCALLY |
+| Qwen3.5 4B/9B                   | NOT BENCHMARKED LOCALLY                              |
+| Ministral 3 8B                  | NOT BENCHMARKED LOCALLY                              |
+| Qwen3 Embedding/Reranker        | NOT BENCHMARKED LOCALLY                              |
 
 ## Benchmarks
 
