@@ -204,3 +204,26 @@ test("cancelled turns do not persist partial conversation content", async () => 
   );
   application.close();
 });
+
+test("application rolls back a stream without a terminal event", async () => {
+  const config = await testConfig();
+  const store = await SqliteSessionStore.open(":memory:");
+  const provider = providerWithStream(async function* () {
+    yield { type: "token", text: "resposta parcial" };
+  });
+  const application = createApplication(config, store, provider);
+  const session = application.createSession();
+  const events = [];
+  for await (const event of application.chat({
+    sessionId: session.id,
+    content: "não persistir"
+  }))
+    events.push(event);
+
+  assert.equal(events.at(-1)?.type, "error");
+  assert.deepEqual(application.listMessages(session.id), []);
+  const requestId = events[0]?.requestId;
+  assert.ok(requestId);
+  assert.equal(store.getMetric(requestId)?.status, "failed");
+  application.close();
+});

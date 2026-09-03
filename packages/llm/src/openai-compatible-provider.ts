@@ -7,14 +7,15 @@ import type {
   RuntimeDefinition
 } from "@jarvis/contracts";
 
-interface StreamChunk {
-  readonly choices?: readonly {
-    readonly delta?: { readonly content?: string };
-    readonly finish_reason?: string | null;
-  }[];
+type FinishReason = "stop" | "length" | "cancelled" | "unknown";
+
+interface ParsedStreamChunk {
+  readonly choiceCount: number;
+  readonly content?: string;
+  readonly finishReason?: FinishReason;
   readonly usage?: {
-    readonly prompt_tokens?: number;
-    readonly completion_tokens?: number;
+    readonly promptTokens?: number;
+    readonly completionTokens?: number;
   };
 }
 
@@ -59,34 +60,31 @@ export class OpenAiCompatibleProvider implements LlmProvider {
     if (!response.body)
       throw new Error(`Runtime ${this.id} returned no response stream`);
 
-    let finishReason: "stop" | "length" | "cancelled" | "unknown" = "unknown";
+    let finishReason: FinishReason = "unknown";
     let usage: { promptTokens?: number; completionTokens?: number } | undefined;
+    let receivedTerminalMarker = false;
 
     for await (const payload of parseServerSentEvents(
       response.body,
       this.runtime.maxStreamEventBytes
     )) {
-      if (payload === "[DONE]") break;
-      const chunk = JSON.parse(payload) as StreamChunk;
-      const choice = chunk.choices?.[0];
-      const content = choice?.delta?.content;
-      if (content) yield { type: "token", text: content };
-      if (choice?.finish_reason)
-        finishReason = normalizeFinishReason(choice.finish_reason);
-      if (chunk.usage) {
-        const promptTokens = tokenCount(
-          chunk.usage.prompt_tokens,
-          "prompt_tokens"
-        );
-        const completionTokens = tokenCount(
-          chunk.usage.completion_tokens,
-          "completion_tokens"
-        );
-        usage = {
-          ...(promptTokens === undefined ? {} : { promptTokens }),
-          ...(completionTokens === undefined ? {} : { completionTokens })
-        };
+      if (payload === "[DONE]") {
+        receivedTerminalMarker = true;
+        break;
       }
+      const chunk = parseStreamChunk(payload);
+      if (receivedTerminalMarker && chunk.choiceCount > 0) {
+        throw new Error("Runtime returned choices after a terminal marker");
+      }
+      if (chunk.content) yield { type: "token", text: chunk.content };
+      if (chunk.finishReason) {
+        finishReason = chunk.finishReason;
+        receivedTerminalMarker = true;
+      }
+      if (chunk.usage) usage = chunk.usage;
+    }
+    if (!receivedTerminalMarker) {
+      throw new Error("Runtime stream ended without a terminal marker");
     }
     yield { type: "done", finishReason, ...(usage ? { usage } : {}) };
   }
@@ -155,13 +153,81 @@ export class OpenAiCompatibleProvider implements LlmProvider {
   }
 }
 
-function normalizeFinishReason(
-  reason: string
-): "stop" | "length" | "cancelled" | "unknown" {
+function normalizeFinishReason(reason: string): FinishReason {
   if (reason === "stop") return "stop";
   if (reason === "length") return "length";
   if (reason === "cancelled") return "cancelled";
   return "unknown";
+}
+
+function readFinishReason(value: unknown): FinishReason | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== "string" || !value.trim()) {
+    throw new Error("Runtime returned invalid finish_reason");
+  }
+  return normalizeFinishReason(value);
+}
+
+function parseStreamChunk(payload: string): ParsedStreamChunk {
+  const root = readObject(JSON.parse(payload) as unknown, "stream chunk");
+  const choices = readChoices(root.choices);
+  const choice = choices[0];
+  const delta = choice ? readOptionalObject(choice.delta, "delta") : undefined;
+  const content = readContent(delta?.content);
+  const finishReason = readFinishReason(choice?.finish_reason);
+  const usage = readUsage(root.usage);
+
+  return {
+    choiceCount: choices.length,
+    ...(content === undefined ? {} : { content }),
+    ...(finishReason === undefined ? {} : { finishReason }),
+    ...(usage === undefined ? {} : { usage })
+  };
+}
+
+function readChoices(value: unknown): readonly Record<string, unknown>[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value)) {
+    throw new Error("Runtime returned invalid choices");
+  }
+  return value.map((choice) => readObject(choice, "choice"));
+}
+
+function readOptionalObject(
+  value: unknown,
+  field: string
+): Record<string, unknown> | undefined {
+  if (value === undefined || value === null) return undefined;
+  return readObject(value, field);
+}
+
+function readObject(value: unknown, field: string): Record<string, unknown> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error(`Runtime returned invalid ${field}`);
+  }
+  return value as Record<string, unknown>;
+}
+
+function readContent(value: unknown): string | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== "string") {
+    throw new Error("Runtime returned invalid delta.content");
+  }
+  return value;
+}
+
+function readUsage(value: unknown): ParsedStreamChunk["usage"] | undefined {
+  const usage = readOptionalObject(value, "usage");
+  if (!usage) return undefined;
+  const promptTokens = tokenCount(usage.prompt_tokens, "prompt_tokens");
+  const completionTokens = tokenCount(
+    usage.completion_tokens,
+    "completion_tokens"
+  );
+  return {
+    ...(promptTokens === undefined ? {} : { promptTokens }),
+    ...(completionTokens === undefined ? {} : { completionTokens })
+  };
 }
 
 function tokenCount(value: unknown, field: string): number | undefined {
