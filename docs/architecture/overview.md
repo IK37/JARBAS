@@ -38,6 +38,9 @@ O modelo nunca acessa diretamente o sistema operacional, banco ou integração. 
 - TypeScript strict em monorepo pnpm.
 - Web estática local e API HTTP nativa Node; React/Tauri serão reavaliados na fase de produto.
 - Contrato OpenAI-compatible para Ollama, llama.cpp e runtimes futuros.
+- Application Core depende de portas para storage, logging e roteamento; adapters são montados apenas em `apps/api`.
+- Context Window Manager determinístico usa o budget do modelo e registra truncamentos sem logar conteúdo.
+- Um único turno por sessão é permitido no processo V1; concorrência adicional recebe conflito explícito.
 - Rust somente para capacidades nativas.
 - SQLite local com migrations; PostgreSQL apenas quando sync/concurrency exigirem.
 - Python somente para áudio, visão ou ML que realmente exijam seu ecossistema.

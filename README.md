@@ -20,9 +20,11 @@ A Foundation V1 agora contém:
 
 - API HTTP local vinculada a `127.0.0.1`;
 - interface web com streaming e cancelamento;
+- janela de contexto determinística e limites configuráveis de entrada/saída;
 - abstrações de modelo/runtime e provider OpenAI-compatible;
 - Model Router configurável e provider determinístico de desenvolvimento;
 - SQLite com migrations, sessões, mensagens e métricas;
+- proteção contra turnos concorrentes e descarte de respostas parciais;
 - health checks separados para aplicação, storage, runtime e modelo;
 - logs JSON com redação e sem conteúdo de conversa;
 - presets AMD atual e NVIDIA futuro.
@@ -83,7 +85,8 @@ O pedido de revisar o código mais de duas vezes virou três gates verificáveis
 corepack enable
 pnpm install
 pnpm check
-pnpm build
+pnpm security:scan
+pnpm smoke
 ```
 
 ### Executar com Ollama local
@@ -104,7 +107,10 @@ Configurações locais podem usar variáveis de ambiente como `JARBAS_PROVIDER`,
 
 ## Estado atual
 
-**DONE:** contratos, domínio inicial, Policy Engine e Foundation de chat local.
+**DONE:** baseline de software da Foundation para chat local, validada com provider determinístico e endpoint OpenAI-compatible simulado.
 
-**NEXT:** memória persistente auditável.
-**BLOCKED:** benchmark real de GPU/modelos precisa ser executado no hardware do usuário.
+**IN PROGRESS:** aceitação do Milestone 1 com um LLM real no hardware-alvo.
+
+**BLOCKED:** benchmark real de GPU/modelos precisa ser executado na RX 9060 XT. Fallback de runtime continua planejado e não é declarado como implementado.
+
+**NEXT:** memória persistente auditável após a aceitação de hardware, sem acoplar o novo módulo ao runtime de GPU.

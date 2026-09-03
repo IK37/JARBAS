@@ -1,30 +1,39 @@
-# DEVELOPMENT REPORT — Foundation V1
+# DEVELOPMENT REPORT — Foundation V1 Remediation
 
 **Data:** 2026-09-03  
 **Branch:** `feat/foundation-001`  
-**Milestone:** Foundation V1
+**Milestone:** Foundation V1 software baseline / Milestone 1 hardware acceptance
 
 ## Executive Summary
 
-**DONE:** a JARBAS deixou de ser somente arquitetura e possui um baseline local executável: interface web, API loopback, chat em streaming, Model Router, providers substituíveis, persistência SQLite, observabilidade e health checks.
+**DONE:** a Foundation possui baseline de software executável com interface web local, API loopback, streaming NDJSON, Model Router, providers substituíveis, persistência SQLite, janela de contexto, limites de recurso, observabilidade e health checks.
 
-**DONE:** a MODEL & AI STACK REVIEW #001 foi registrada com recomendações separadas para AMD atual e NVIDIA futura.
+**DONE:** defeitos encontrados por três revisões independentes foram reproduzidos e corrigidos: bloqueio da própria UI por Origin, erros depois dos headers, corrida de turnos, respostas parciais após cancelamento, perda de token usage, lock após desconexão, usage inválido, IPv6 loopback e gates incompletos.
 
-**BLOCKED:** nenhum LLM foi executado na RX 9060 XT ou RTX 5070 Ti nesta sessão. O runner disponível não possui GPU nem runtime local; todos os candidatos permanecem `NOT BENCHMARKED LOCALLY`.
+**IN PROGRESS:** o Milestone 1 completo ainda precisa carregar e executar um LLM real no computador-alvo.
+
+**BLOCKED:** este ambiente não possui a RX 9060 XT nem runtime local configurado. Qwen3.5 4B/9B e Ministral 3 8B permanecem `NOT BENCHMARKED LOCALLY`.
 
 ## Completed
 
-- configuração central para aplicação, runtimes, modelos, hardware e privacidade;
-- separação entre modelo lógico e backend de execução;
+- configuração estrutural e cross-file para aplicação, runtimes, modelos, hardware e privacidade;
+- separação entre modelo lógico, runtime e provider;
+- portas de application para storage, logging e roteamento;
 - providers mock e OpenAI-compatible com streaming SSE, timeout e health;
-- presets FAST, BALANCED, QUALITY, LOW_MEMORY e OFFLINE;
-- SQLite WAL com foreign keys, migration versionada e transações;
-- sessões, mensagens e métricas persistentes;
-- API Node local com NDJSON, cancelamento, limites e respostas seguras;
-- interface web local sem lógica cognitiva;
-- logs JSON com redação de credenciais;
-- detector de hardware e harness de benchmark;
-- documentação, ADRs e pipeline CI.
+- Context Window Manager com orçamento por modelo e log de truncamento sem conteúdo;
+- limites configuráveis para body, mensagem, contexto, saída e evento SSE;
+- exclusão mútua por sessão com resposta `409`;
+- rollback de mensagens incompletas em cancelamento, falha ou desconexão;
+- SQLite WAL com foreign keys, migrations separadas e transações;
+- sessões, mensagens e métricas com token usage persistente;
+- API com validação JSON e respostas `400/403/404/409/413/415`;
+- same-origin dinâmica para IPv4/IPv6 e porta configurada;
+- backpressure e cancelamento em desconexão;
+- interface web que reconcilia o histórico após sucesso, erro ou cancelamento;
+- logs JSON com redação de headers/tokens/cookies/JWT/private keys;
+- build oficial nos testes de integração;
+- CI matricial Ubuntu/Windows, audit, secret scan e smoke de processo;
+- cobertura V8 com thresholds para `domain` e `security`.
 
 ## Architecture Decisions
 
@@ -37,13 +46,20 @@
 | 0010 | sem framework multiagente agora             | auditabilidade e simplicidade                  |
 | 0011 | shortlist permanece candidata               | benchmark real obrigatório                     |
 
+Decisões corretivas: um turno ativo por sessão na V1; falhas depois do início do stream viram eventos seguros; conteúdo parcial não integra o histórico; fallback automático foi removido da configuração até existir implementação observável.
+
 ## Files Created
 
-Principais grupos: `apps/api`, `apps/web`, `configs`, `packages/application`, `packages/config`, `packages/llm`, `packages/observability`, `packages/routing`, `packages/storage`, `benchmarks`, scripts e documentação.
+- `packages/application/src/context-window-manager.ts`, `errors.ts` e `ports.ts`;
+- validadores separados em `packages/config/src/validate-*.ts`;
+- `packages/storage/src/migrations.ts` e `row-mappers.ts`;
+- `apps/api/src/http-boundary.ts`;
+- `scripts/smoke.mjs` e `scripts/scan-secrets.mjs`;
+- suítes de integração separadas em `tests-runtime/`.
 
 ## Files Modified
 
-README, workspace/TypeScript, lockfile, ESLint, arquitetura, roadmap e contratos compartilhados.
+Configuração, contratos, application, API/UI, provider OpenAI-compatible, router, storage, observabilidade, scripts, CI, lockfile, documentação e roadmap.
 
 ## Models Tested
 
@@ -57,104 +73,118 @@ README, workspace/TypeScript, lockfile, ESLint, arquitetura, roadmap e contratos
 
 ## Benchmarks
 
-**DONE:** suite inicial versionada para português, JSON, tool selection, código e prompt injection.
+**DONE:** plano e harness versionados para português, JSON, tool selection, código, prompt injection, TTFT e tokens/s.
 
-**DONE:** harness registra TTFT, duração, tokens/s quando o runtime fornece usage e ambiente.
-
-**BLOCKED:** tokens/s, VRAM, RAM do modelo e qualidade comparativa dependem da execução no PC do usuário.
+**BLOCKED:** tokens/s, VRAM, RAM e qualidade comparativa de LLM exigem execução no hardware do usuário.
 
 ## Tests
 
-- 8 testes Vitest: domínio e Policy Engine;
-- 7 testes de Foundation: config, router, restart SQLite, aplicação, SSE CRLF, HTTP/Origin e redação;
-- total: 15 testes aprovados;
-- TypeScript strict, ESLint, Prettier e build aprovados pelo GitHub Actions.
+- 8 testes Vitest de domínio e Policy Engine;
+- 16 testes nativos de Foundation/integração;
+- 24 cenários automatizados no total;
+- cobertura unitária: 81,1% statements/lines, 66,66% branches e 100% functions no escopo `domain` + `security`;
+- Prettier, ESLint, TypeScript strict, build de 11 projetos, frozen install, audit, secret scan e smoke aprovados localmente;
+- smoke real: processo separado, health, same-origin, sessão, NDJSON, persistência, 404 e shutdown IPC.
 
 ## Review Passes
 
-### Review #1 — Correção técnica
+### Ciclo inicial
 
-Corrigidos parsing SSE com CRLF, status final sem evento terminal e `exactOptionalPropertyTypes` no cancelamento.
+- Review #1 — correção técnica: **FAIL**;
+- Review #2 — arquitetura e qualidade: **FAIL**;
+- Review #3 — regressão, segurança e polimento: **FAIL**.
 
-### Review #2 — Arquitetura e qualidade
+### Correções e re-review
 
-Corrigidos root discovery ao iniciar via workspace, timeout de health, migration transacional e separação de artefato por runtime. Frameworks sem benefício imediato foram removidos.
+- Review #1: blockers originais corrigidos; a primeira re-review encontrou lock residual em desconexão, usage inválido e IPv6; segunda correção e testes adicionados;
+- Review #2: **PASS** após Dependency Inversion, Context Window Manager, validação configuracional e remoção do fallback fictício;
+- Review #3: **PASS** no escopo local após regressões de disconnect, usage, IPv6, limites, audit e smoke.
 
-### Review #3 — Segurança, regressão e polimento
-
-Validado loopback, Origin, CSP, limites, ausência de secrets, redação sem ocultar métricas legítimas, restart do banco, suite completa e build no CI.
+A ata consolidada está em `docs/reviews/foundation-remediation-2026-09-03.md`.
 
 ## Problems Found
 
-- cache do pnpm inicializado cedo demais no CI;
-- formatter/lint sem globals separados para browser e Node;
-- Vitest descobria o harness nativo;
-- sinal opcional violava typing estrito;
-- caminho do repositório dependia do diretório corrente;
-- redação inicial confundia contagem de tokens com segredo;
-- health poderia aguardar timeout de geração.
+- UI oficial rejeitava a própria origem;
+- sessão/task inválida destruía a conexão depois do status `200`;
+- dois chats simultâneos corrompiam a ordem semântica;
+- cancelamento persistia resposta truncada como completa;
+- token usage era descartado ou podia quebrar SQLite por tipo/overflow;
+- todo o histórico ignorava o contexto configurado;
+- `allowCpuFallback` existia sem implementação;
+- validação usava casts e não cobria todas as referências;
+- desconexão durante backpressure podia manter lock/mensagem órfã;
+- URL IPv6 loopback era montada sem colchetes;
+- build de teste alternativo divergia do release;
+- coverage, audit, secret scan, smoke real e Windows CI estavam ausentes.
 
 ## Problems Fixed
 
-Todos os itens acima foram corrigidos e cobertos por gates ou testes aplicáveis.
+Todos os itens acima receberam correção e regressão automatizada aplicável. O fallback não foi falsamente implementado: a flag e as alegações foram removidas, e a capacidade permanece `PLANNED`.
 
 ## Known Limitations
 
-- sem memória pessoal ainda; apenas persistência de conversa;
+- nenhum LLM real foi carregado neste ambiente;
+- sem fallback automático de runtime;
+- sem memória pessoal; existe apenas histórico de conversa;
 - sem embeddings, RAG, Knowledge Graph, agentes ou ferramentas executáveis;
-- sem autenticação para uso fora de loopback;
-- dados SQLite não possuem criptografia gerenciada;
-- provider OpenAI-compatible ainda cobre somente chat/health;
-- UI é funcional, não um desktop empacotado;
-- performance de LLM real desconhecida.
+- External Data Policy ainda é configuração declarativa, não enforcement por classificação;
+- sem autenticação para rede ou criptografia at-rest gerenciada;
+- exclusão mútua de sessão é in-process, adequada ao monólito V1;
+- provider OpenAI-compatible ainda cobre chat/health;
+- `providerId` e `runtimeId` compartilham identidade nesta implementação inicial.
 
 ## Technical Debt
 
-- validação JSON estrutural deverá evoluir para schemas versionados;
-- métricas de CPU/GPU precisam de coleta durante inferência;
-- migrations futuras devem ser arquivos independentes;
-- API precisará de testes de backpressure e desconexão prolongada.
+- extrair o executor de turno antes de adicionar Memory ao `JarbasApplication`;
+- modelar recuperação de turnos interrompidos por crash de processo;
+- ampliar testes de slow client e eventos SSE malformados;
+- separar view mínima de configuração consumida por application;
+- endurecer o Policy Engine antes de qualquer ToolRegistry executável.
 
 ## Security
 
-**DONE:** local-only, CSP, allowlist de Origin, limites, timeouts, logs sem conteúdo e redação de secrets.
+**DONE:** loopback, CSP, same-origin, tipos/limites HTTP, timeouts, backpressure, rollback de parciais, logs sem conteúdo, redação, audit e secret scan.
 
-**PLANNED:** encryption at rest, ToolRegistry executável, sandbox, autenticação opcional e receipts de consentimento.
+**PLANNED:** autenticação opcional, encryption at rest, enforcement da política externa, sandbox, ToolRegistry e consent receipts.
+
+O Policy Engine é `EXPERIMENTAL` e não está aprovado para autorizar ferramentas reais.
 
 ## Performance
 
-Os 7 testes nativos terminaram em aproximadamente 0,15–0,17 s no ambiente sem GPU. Esse valor mede apenas foundation e não prevê desempenho de modelos.
+Os 16 testes de integração terminam em cerca de 0,20 s neste runner sem GPU. Isso mede apenas a Foundation. Não é previsão de desempenho de LLM.
 
 ## AMD Hardware Status
 
-**DONE:** RX 9060 XT 16 GB está representada no perfil; runtimes `auto`, ROCm/Vulkan e fallback explícito são suportados pela arquitetura.
+**DONE:** perfil Ryzen 5 9600X + RX 9060 XT 16 GB e runtimes desacoplados de fabricante.
 
-**BLOCKED:** instalar/validar Windows 11 ou Ubuntu 24.04, driver, Ollama/llama.cpp e executar benchmark real.
+**BLOCKED:** driver, Ollama/llama.cpp, backend efetivo, modelo, TTFT, tokens/s, RAM e VRAM não foram validados na máquina-alvo.
 
 ## NVIDIA Migration Readiness
 
-**DONE:** perfil RTX 5070 Ti 16 GB e runtime CUDA configuráveis. Core, aplicação, storage e UI não dependem de fabricante.
+**DONE:** perfil Ryzen 7 9800X3D + RTX 5070 Ti 16 GB e runtime CUDA configuráveis sem dependência no Core/Application/UI/Storage.
 
-**PLANNED:** detectar CUDA, repetir golden suite, comparar baseline AMD e só então alterar preset/modelo.
+**PLANNED:** detectar CUDA, repetir golden suite, comparar baseline AMD e alterar apenas configuração/adapters.
 
 ## Current Project Status
 
-- Foundation V1: **100% DONE**;
-- visão completa descrita no prompt mestre: **aproximadamente 10%**;
-- milestone atual: pronto para Persistent Memory.
+- Foundation software baseline: **DONE localmente com mock/simulação**;
+- Milestone 1 com LLM real no hardware-alvo: **IN PROGRESS / BLOCKED EXTERNALLY**;
+- visão completa do Prompt Mestre: **aproximadamente 10%**;
+- próximo milestone de produto: Persistent Memory, após aceitação do runtime/modelo real.
 
 ## Recommended Improvements
 
 1. executar benchmark AMD com Qwen3.5 4B/9B e Ministral 3 8B;
-2. implementar memória auditável com origem, privacidade e esquecimento;
-3. adicionar backup/export antes de expandir o grafo;
-4. integrar embedding somente após benchmark PT/EN/código;
+2. implementar fallback observável somente após validar um backend CPU real;
+3. implementar memória auditável com origem, privacidade, deduplicação e esquecimento;
+4. adicionar backup/export antes de expandir o grafo;
 5. adiar fine-tuning até evaluation/model registry.
 
 ## Next Steps
 
-1. `pnpm hardware:detect` na máquina alvo;
-2. instalar runtime compatível e baixar somente os três candidatos iniciais;
-3. executar `pnpm benchmark:model` por runtime/modelo;
-4. registrar resultados e selecionar `MODEL_FAST`/`MODEL_PRIMARY` provisórios;
-5. iniciar Milestone 2 — Persistent Memory.
+1. validar o run final do CI em Ubuntu e Windows;
+2. executar `pnpm hardware:detect` na máquina-alvo;
+3. instalar runtime AMD compatível e baixar apenas os candidatos iniciais;
+4. executar `pnpm benchmark:model` por runtime/modelo;
+5. registrar AMD baseline e selecionar `MODEL_FAST`/`MODEL_PRIMARY` provisórios;
+6. iniciar Milestone 2 — Persistent Memory.

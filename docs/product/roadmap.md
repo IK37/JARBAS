@@ -8,7 +8,12 @@
 - [x] SQLite, migrations, sessões, mensagens e métricas;
 - [x] health checks e logs redigidos;
 - [x] configuração AMD atual/NVIDIA futura;
+- [x] validação estrutural, janela de contexto e limites de recurso;
+- [x] CI com build oficial, audit/secret scan e smoke de processo;
+- [ ] fallback observável de runtime;
 - [ ] executar matriz de benchmark na RX 9060 XT.
+
+Critério restante do Milestone 1: carregar e conversar com um modelo real na máquina-alvo, registrar TTFT/tokens/s/RAM/VRAM e comparar os candidatos sem alterar o core.
 
 ## NEXT — 0–30 dias: provar continuidade
 
