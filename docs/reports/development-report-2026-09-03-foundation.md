@@ -1,14 +1,16 @@
 # DEVELOPMENT REPORT — Foundation V1 Remediation
 
-**Data:** 2026-09-03  
-**Branch:** `feat/foundation-001`  
+**Data:** 2026-09-03
+**Branch:** `feat/foundation-001`
 **Milestone:** Foundation V1 software baseline / Milestone 1 hardware acceptance
 
 ## Executive Summary
 
-**DONE:** a Foundation possui baseline de software executável com interface web local, API loopback, streaming NDJSON, Model Router, providers substituíveis, persistência SQLite, janela de contexto, limites de recurso, observabilidade e health checks.
+**IN PROGRESS:** a Foundation possui a implementação funcional, mas sua aceitação de software foi reaberta após uma instalação limpa revelar dependências workspace implícitas no harness de testes.
 
 **DONE:** defeitos encontrados por três revisões independentes foram reproduzidos e corrigidos: bloqueio da própria UI por Origin, erros depois dos headers, corrida de turnos, respostas parciais após cancelamento, perda de token usage, lock após desconexão, usage inválido, IPv6 loopback e gates incompletos.
+
+**REPRODUCIBILITY PASS LOCAL:** o commit `dab4d6b` isoladamente não era reproduzível, mas a remediação no worktree passou por clone Git limpo, gates completos e três reviews independentes. A aceitação continua `NO-GO` até validar o commit final e o CI remoto.
 
 **IN PROGRESS:** o Milestone 1 completo ainda precisa carregar e executar um LLM real no computador-alvo.
 
@@ -55,6 +57,7 @@ Decisões corretivas: um turno ativo por sessão na V1; falhas depois do início
 - `packages/storage/src/migrations.ts` e `row-mappers.ts`;
 - `apps/api/src/http-boundary.ts`;
 - `scripts/smoke.mjs` e `scripts/scan-secrets.mjs`;
+- `scripts/check-runtime-workspace-dependencies.mjs`;
 - suítes de integração separadas em `tests-runtime/`.
 
 ## Files Modified
@@ -83,7 +86,8 @@ Configuração, contratos, application, API/UI, provider OpenAI-compatible, rout
 - 16 testes nativos de Foundation/integração;
 - 24 cenários automatizados no total;
 - cobertura unitária: 81,1% statements/lines, 66,66% branches e 100% functions no escopo `domain` + `security`;
-- Prettier, ESLint, TypeScript strict, build de 11 projetos, frozen install, audit, secret scan e smoke aprovados localmente;
+- os resultados verdes anteriores foram obtidos em ambiente incremental e permanecem apenas como histórico;
+- um clone Git limpo passou por frozen install, Prettier, ESLint, TypeScript, build, 24 testes, coverage, audit, secret scan e smoke;
 - smoke real: processo separado, health, same-origin, sessão, NDJSON, persistência, 404 e shutdown IPC.
 
 ## Review Passes
@@ -102,6 +106,17 @@ Configuração, contratos, application, API/UI, provider OpenAI-compatible, rout
 
 A ata consolidada está em `docs/reviews/foundation-remediation-2026-09-03.md`.
 
+### Reproducibility audit
+
+- instalação limpa: **FAIL** no commit `dab4d6b`;
+- causa: seis imports `@jarvis/*` do harness sem dependências declaradas na raiz;
+- razão do falso-verde: links manuais residuais do fluxo antigo;
+- remediação no worktree: **PASS** em clone Git limpo;
+- Review #1 da remediação: **PASS**;
+- Review #2 da remediação: **PASS**;
+- Review #3 da remediação: **PASS / GO para commit local**;
+- release: **NO-GO para push** até validar o SHA final e CI Ubuntu/Windows.
+
 ## Problems Found
 
 - UI oficial rejeitava a própria origem;
@@ -116,10 +131,13 @@ A ata consolidada está em `docs/reviews/foundation-remediation-2026-09-03.md`.
 - URL IPv6 loopback era montada sem colchetes;
 - build de teste alternativo divergia do release;
 - coverage, audit, secret scan, smoke real e Windows CI estavam ausentes.
+- dependências do harness root estavam implícitas e mascaradas por links residuais;
+- coverage possuía threshold local, mas não era executada pelo CI;
+- o lifecycle script do `esbuild` não possuía decisão versionada.
 
 ## Problems Fixed
 
-Todos os itens acima receberam correção e regressão automatizada aplicável. O fallback não foi falsamente implementado: a flag e as alegações foram removidas, e a capacidade permanece `PLANNED`.
+Os defeitos funcionais receberam correção e regressão automatizada aplicável. A remediação de reprodutibilidade passou localmente; a aceitação permanece `IN PROGRESS` até concluir reviews e CI. O fallback não foi falsamente implementado: a flag e as alegações foram removidas, e a capacidade permanece `PLANNED`.
 
 ## Known Limitations
 
@@ -167,7 +185,7 @@ Os 16 testes de integração terminam em cerca de 0,20 s neste runner sem GPU. I
 
 ## Current Project Status
 
-- Foundation software baseline: **DONE localmente com mock/simulação**;
+- Foundation software baseline: **REPRODUCIBILITY + TRIPLE REVIEW PASS LOCAL / NO-GO até SHA final e CI**;
 - Milestone 1 com LLM real no hardware-alvo: **IN PROGRESS / BLOCKED EXTERNALLY**;
 - visão completa do Prompt Mestre: **aproximadamente 10%**;
 - próximo milestone de produto: Persistent Memory, após aceitação do runtime/modelo real.
@@ -182,9 +200,10 @@ Os 16 testes de integração terminam em cerca de 0,20 s neste runner sem GPU. I
 
 ## Next Steps
 
-1. validar o run final do CI em Ubuntu e Windows;
-2. executar `pnpm hardware:detect` na máquina-alvo;
-3. instalar runtime AMD compatível e baixar apenas os candidatos iniciais;
-4. executar `pnpm benchmark:model` por runtime/modelo;
-5. registrar AMD baseline e selecionar `MODEL_FAST`/`MODEL_PRIMARY` provisórios;
-6. iniciar Milestone 2 — Persistent Memory.
+1. repetir a regressão completa e validar o commit destinado ao push;
+2. realizar push e exigir CI verde em Ubuntu e Windows;
+3. executar `pnpm hardware:detect` na máquina-alvo;
+4. instalar runtime AMD compatível e baixar apenas os candidatos iniciais;
+5. executar `pnpm benchmark:model` por runtime/modelo;
+6. registrar AMD baseline e selecionar `MODEL_FAST`/`MODEL_PRIMARY` provisórios;
+7. iniciar Milestone 2 — Persistent Memory.

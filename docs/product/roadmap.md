@@ -9,7 +9,8 @@
 - [x] health checks e logs redigidos;
 - [x] configuração AMD atual/NVIDIA futura;
 - [x] validação estrutural, janela de contexto e limites de recurso;
-- [x] CI com build oficial, audit/secret scan e smoke de processo;
+- [x] validar remediação de instalação limpa e dependências explícitas;
+- [ ] validar CI com coverage, audit/secret scan e smoke em Ubuntu/Windows;
 - [ ] fallback observável de runtime;
 - [ ] executar matriz de benchmark na RX 9060 XT.
 

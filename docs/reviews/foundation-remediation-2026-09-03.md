@@ -8,6 +8,8 @@
 
 As três revisões iniciais ocorreram antes das alterações corretivas. Cada reviewer trabalhou em modo somente leitura, reproduziu falhas e emitiu veredicto independente. Após as correções, os mesmos três gates foram repetidos.
 
+Os PASS descritos abaixo são resultados históricos de um ambiente incremental. Uma auditoria posterior de reprodutibilidade invalidou esses resultados como evidência de release; o incidente e a remediação estão registrados ao fim desta ata.
+
 ## Review #1 — Correção técnica
 
 ### Primeiro veredicto: FAIL
@@ -39,7 +41,7 @@ Os blockers originais foram corrigidos, mas testes adversariais encontraram:
 - coverage foi limitada às regras unitárias exercitadas e ganhou thresholds;
 - testes nativos foram divididos por módulo.
 
-### Veredicto final: PASS
+### Veredicto histórico: PASS, posteriormente invalidado para release
 
 Evidências: frozen install, format, lint, strict typecheck, build de 11 projetos, 8 testes Vitest, 16 testes runtime, coverage 81,1%, audit, secret scan, smoke e diff-check aprovados.
 
@@ -93,7 +95,7 @@ Confirmou as falhas HTTP/Origin/concorrência/cancelamento e adicionou:
 - CI possui matriz Ubuntu e Windows;
 - relatório diferencia `DONE`, `IN PROGRESS`, `PLANNED` e `BLOCKED`.
 
-### Veredicto final: PASS no escopo local
+### Veredicto histórico: PASS no ambiente incremental
 
 Frozen install, gates estáticos, 24 testes, coverage com thresholds, audit, secret scan, smoke por processo e regressões HTTP passaram. O merge permanece condicionado aos dois jobs remotos verdes.
 
@@ -117,3 +119,48 @@ Um monólito local com um turno por sessão, portas explícitas e SQLite continu
 - Model/AMD benchmark: `BLOCKED EXTERNALLY`;
 - Policy Engine executável: `EXPERIMENTAL`;
 - Memory/RAG/Knowledge Graph: `NEXT`, não misturados na Foundation.
+
+## Reproducibility Incident
+
+### Symptom
+
+Após instalação realmente limpa, os seis arquivos `tests-runtime/*.test.mjs` falharam antes dos testes com `ERR_MODULE_NOT_FOUND` para imports `@jarvis/*`.
+
+### Immediate Cause
+
+O harness executado pela raiz importava seis workspaces que não estavam declarados no `package.json` raiz.
+
+### Root Cause
+
+O fluxo antigo criava links manuais em `node_modules/@jarvis`. Esses links sobreviveram à remoção do script e mascararam dependências implícitas durante as validações incrementais.
+
+### Why Tests Did Not Catch It
+
+Os gates foram repetidos no mesmo diretório de trabalho. Embora o lockfile estivesse congelado, `node_modules` ainda continha estado que não seria criado em um checkout novo.
+
+### Remediation
+
+- declarar apenas os seis imports diretos como `devDependencies` `workspace:*` da raiz;
+- tornar `test:runtime` responsável pelo próprio build;
+- comparar imports do harness com o manifesto antes dos demais gates;
+- aprovar nominalmente apenas o script de instalação do `esbuild`;
+- executar coverage no CI Ubuntu e Windows;
+- exigir a versão exata de pnpm declarada pelo projeto.
+
+Um `node_modules` incremental que já continha `esbuild` ignorado falhou corretamente após `strictDepBuilds` ser ativado. A recuperação nominal com `corepack pnpm rebuild esbuild` removeu o estado residual; o clone limpo executou o mesmo postinstall automaticamente.
+
+### Regression Prevention
+
+O release passa a exigir Reproducibility Gate em checkout limpo, frozen lockfile, validação de dependências do harness e matriz remota completa. Links manuais, cache e `dist` anterior não são evidência válida.
+
+### Current Verdict
+
+**Reproducibility Gate local: PASS.** Um clone Git sem `node_modules`, `dist`, coverage ou dados anteriores passou por frozen install, 8 testes Vitest, build de 11 projetos, 16 testes runtime, coverage, audit, secret scan, smoke e verificação de builds ignorados.
+
+**Review #1: PASS.** O único achado LOW no checker foi corrigido com travessia recursiva, paths portáveis, suporte a `.js/.mjs/.cjs` e normalização de subpaths.
+
+**Review #2: PASS.** O README e o nome do gate foram alinhados ao estado real e ao escopo runtime; a solução preserva as fronteiras arquiteturais sem criar um workspace desnecessário.
+
+**Review #3: PASS / GO para commit local.** Testes adversariais preservaram loopback, Origin, limites, rollback, cancelamento e concorrência. O comando de instalação documentado também foi corrigido para ser portável entre shells.
+
+**Release: NO-GO para push** até criar o commit, validar um clone do SHA resultante e obter CI remoto verde em Ubuntu e Windows.

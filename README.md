@@ -83,10 +83,11 @@ O pedido de revisar o código mais de duas vezes virou três gates verificáveis
 
 ```bash
 corepack enable
-pnpm install
-pnpm check
-pnpm security:scan
-pnpm smoke
+corepack pnpm install --frozen-lockfile
+corepack pnpm check
+corepack pnpm test:coverage
+corepack pnpm security:scan
+corepack pnpm smoke
 ```
 
 ### Executar com Ollama local
@@ -107,7 +108,7 @@ Configurações locais podem usar variáveis de ambiente como `JARBAS_PROVIDER`,
 
 ## Estado atual
 
-**DONE:** baseline de software da Foundation para chat local, validada com provider determinístico e endpoint OpenAI-compatible simulado.
+**IN PROGRESS:** implementação da Foundation para chat local passou pelo Reproducibility Gate e pelas três revisões locais. A aceitação de software ainda depende do clone do commit final e do CI remoto Ubuntu/Windows.
 
 **IN PROGRESS:** aceitação do Milestone 1 com um LLM real no hardware-alvo.
 
