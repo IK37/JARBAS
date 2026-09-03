@@ -1,6 +1,16 @@
 # Roadmap
 
-## 0–30 dias — provar continuidade
+## NOW — Foundation V1
+
+- [x] contratos de provider/runtime/modelo;
+- [x] Model Router configurável;
+- [x] API e UI local com streaming/cancelamento;
+- [x] SQLite, migrations, sessões, mensagens e métricas;
+- [x] health checks e logs redigidos;
+- [x] configuração AMD atual/NVIDIA futura;
+- [ ] executar matriz de benchmark na RX 9060 XT.
+
+## NEXT — 0–30 dias: provar continuidade
 
 - Project Object, inbox de ideias e estados de projeto.
 - Decision Ledger e próxima ação.
