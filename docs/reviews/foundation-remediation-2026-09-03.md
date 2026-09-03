@@ -163,4 +163,10 @@ O release passa a exigir Reproducibility Gate em checkout limpo, frozen lockfile
 
 **Review #3: PASS / GO para commit local.** Testes adversariais preservaram loopback, Origin, limites, rollback, cancelamento e concorrência. O comando de instalação documentado também foi corrigido para ser portável entre shells.
 
-**Release: NO-GO para push** até criar o commit, validar um clone do SHA resultante e obter CI remoto verde em Ubuntu e Windows.
+**Commit/clone final: PASS.** O snapshot local imediatamente anterior a este relatório foi clonado do zero e repetiu frozen install, verificação de dependências, formatter, lint, typecheck, 24 testes, coverage, audit, secret scan, smoke e Git checks.
+
+**Push: BLOCKED.** O push HTTPS autorizado não encontrou credencial GitHub no ambiente. O conector GitHub foi deliberadamente rejeitado como substituto de transporte porque recriaria commits com novos SHAs e deixaria os históricos local e remoto divergentes.
+
+**CI da remediação: NOT RUN.** O remoto permanece em `1c2453b`; o CI #9 verde pertence ao estado anterior e não valida as correções atuais.
+
+**Release: NO-GO** até preservar os commits locais no push e obter CI remoto verde em Ubuntu e Windows.

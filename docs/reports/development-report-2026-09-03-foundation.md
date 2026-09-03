@@ -10,7 +10,11 @@
 
 **DONE:** defeitos encontrados por três revisões independentes foram reproduzidos e corrigidos: bloqueio da própria UI por Origin, erros depois dos headers, corrida de turnos, respostas parciais após cancelamento, perda de token usage, lock após desconexão, usage inválido, IPv6 loopback e gates incompletos.
 
-**REPRODUCIBILITY PASS LOCAL:** o commit `dab4d6b` isoladamente não era reproduzível, mas a remediação no worktree passou por clone Git limpo, gates completos e três reviews independentes. A aceitação continua `NO-GO` até validar o commit final e o CI remoto.
+**REPRODUCIBILITY PASS LOCAL:** a versão documental pré-remediação, preservada na ref local de recuperação, não era reproduzível. O snapshot local corrigido foi clonado sem `node_modules`, `dist`, coverage ou dados anteriores e passou por frozen install, gates completos e três reviews independentes.
+
+**PUSH BLOCKED:** o branch local está seis commits à frente de `origin/feat/foundation-001`. O push HTTPS autorizado falhou porque o ambiente não possui credencial GitHub para Git nativo. O conector GitHub enxerga o repositório, mas não foi usado para recriar commits via API porque isso produziria SHAs diferentes e divergência de histórico.
+
+**REMOTE CI NOT VALIDATED:** o remoto permanece em `1c2453b`. O CI #9 está verde, mas pertence ao estado anterior e não constitui evidência para esta remediação. A aceitação continua `NO-GO` até o push e novos jobs Ubuntu/Windows verdes.
 
 **IN PROGRESS:** o Milestone 1 completo ainda precisa carregar e executar um LLM real no computador-alvo.
 
@@ -108,14 +112,17 @@ A ata consolidada está em `docs/reviews/foundation-remediation-2026-09-03.md`.
 
 ### Reproducibility audit
 
-- instalação limpa: **FAIL** no commit `dab4d6b`;
+- instalação limpa: **FAIL** na versão pré-remediação;
 - causa: seis imports `@jarvis/*` do harness sem dependências declaradas na raiz;
 - razão do falso-verde: links manuais residuais do fluxo antigo;
 - remediação no worktree: **PASS** em clone Git limpo;
 - Review #1 da remediação: **PASS**;
 - Review #2 da remediação: **PASS**;
 - Review #3 da remediação: **PASS / GO para commit local**;
-- release: **NO-GO para push** até validar o SHA final e CI Ubuntu/Windows.
+- SHA local final da remediação: **PASS** em clone limpo;
+- push: **BLOCKED** por ausência de credencial GitHub no terminal;
+- CI da remediação: **NOT RUN**; o CI #9 verde pertence ao remoto antigo;
+- release: **NO-GO** até push e CI Ubuntu/Windows da remediação.
 
 ## Problems Found
 
@@ -137,7 +144,7 @@ A ata consolidada está em `docs/reviews/foundation-remediation-2026-09-03.md`.
 
 ## Problems Fixed
 
-Os defeitos funcionais receberam correção e regressão automatizada aplicável. A remediação de reprodutibilidade passou localmente; a aceitação permanece `IN PROGRESS` até concluir reviews e CI. O fallback não foi falsamente implementado: a flag e as alegações foram removidas, e a capacidade permanece `PLANNED`.
+Os defeitos funcionais receberam correção e regressão automatizada aplicável. A remediação de reprodutibilidade e as três revisões passaram localmente; a aceitação permanece `IN PROGRESS` até autenticar o push e concluir o CI remoto. O fallback não foi falsamente implementado: a flag e as alegações foram removidas, e a capacidade permanece `PLANNED`.
 
 ## Known Limitations
 
@@ -185,7 +192,7 @@ Os 16 testes de integração terminam em cerca de 0,20 s neste runner sem GPU. I
 
 ## Current Project Status
 
-- Foundation software baseline: **REPRODUCIBILITY + TRIPLE REVIEW PASS LOCAL / NO-GO até SHA final e CI**;
+- Foundation software baseline: **REPRODUCIBILITY + TRIPLE REVIEW + FINAL SHA PASS LOCAL / NO-GO até push e CI**;
 - Milestone 1 com LLM real no hardware-alvo: **IN PROGRESS / BLOCKED EXTERNALLY**;
 - visão completa do Prompt Mestre: **aproximadamente 10%**;
 - próximo milestone de produto: Persistent Memory, após aceitação do runtime/modelo real.
@@ -200,8 +207,8 @@ Os 16 testes de integração terminam em cerca de 0,20 s neste runner sem GPU. I
 
 ## Next Steps
 
-1. repetir a regressão completa e validar o commit destinado ao push;
-2. realizar push e exigir CI verde em Ubuntu e Windows;
+1. disponibilizar credencial GitHub ao Git nativo ou executar o push dos commits locais;
+2. exigir CI verde em Ubuntu e Windows para o novo head remoto;
 3. executar `pnpm hardware:detect` na máquina-alvo;
 4. instalar runtime AMD compatível e baixar apenas os candidatos iniciais;
 5. executar `pnpm benchmark:model` por runtime/modelo;
