@@ -15,7 +15,7 @@
     "hardware:detect": "node scripts/detect-hardware.mjs",
     "lint": "eslint .",
     "start": "pnpm --filter @jarvis/api start",
-    "test": "vitest run && pnpm build:runtime && pnpm test:runtime",
+    "test": "vitest run tests && pnpm build:runtime && pnpm test:runtime",
     "test:runtime": "node --test tests-runtime/*.test.mjs",
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc -b --force --pretty false"
