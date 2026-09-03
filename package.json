@@ -5,7 +5,7 @@
   "packageManager": "pnpm@10.15.0",
   "scripts": {
     "build": "pnpm -r build",
-    "benchmark:model": "node scripts/benchmark-openai-compatible.mjs",
+    "benchmark:model": "pnpm build && node scripts/benchmark-openai-compatible.mjs",
     "check": "pnpm check:runtime-deps && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test",
     "check:runtime-deps": "node scripts/check-runtime-workspace-dependencies.mjs",
     "dev": "pnpm --filter @jarvis/api dev",

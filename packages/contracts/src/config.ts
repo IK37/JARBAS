@@ -42,6 +42,7 @@ export interface RuntimeDefinition {
   readonly capabilities: RuntimeCapabilities;
   readonly requestTimeoutMs: number;
   readonly maxStreamEventBytes: number;
+  readonly maxStreamEvents: number;
 }
 
 export interface ModelPreset {

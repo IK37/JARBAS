@@ -49,9 +49,13 @@ export class OpenAiCompatibleProvider implements LlmProvider {
           : { temperature: request.temperature }),
         ...(request.maxOutputTokens === undefined
           ? {}
-          : { max_tokens: request.maxOutputTokens })
+          : { max_tokens: request.maxOutputTokens }),
+        ...(request.reasoningEffort === undefined
+          ? {}
+          : { reasoning_effort: request.reasoningEffort })
       }),
-      signal: this.signal(request.signal)
+      signal: this.signal(request.signal),
+      redirect: "error"
     });
 
     if (!response.ok) {
@@ -66,7 +70,8 @@ export class OpenAiCompatibleProvider implements LlmProvider {
 
     for await (const payload of parseServerSentEvents(
       response.body,
-      this.runtime.maxStreamEventBytes
+      this.runtime.maxStreamEventBytes,
+      this.runtime.maxStreamEvents
     )) {
       if (payload === "[DONE]") {
         receivedTerminalMarker = true;
@@ -94,7 +99,8 @@ export class OpenAiCompatibleProvider implements LlmProvider {
     try {
       const response = await fetch(`${this.endpoint}/models`, {
         headers: this.headers(),
-        signal: this.signal(signal, 5_000)
+        signal: this.signal(signal, 5_000),
+        redirect: "error"
       });
       const payload = response.ok
         ? ((await response.json()) as { data?: { id?: string }[] })
@@ -240,10 +246,12 @@ function tokenCount(value: unknown, field: string): number | undefined {
 
 async function* parseServerSentEvents(
   stream: ReadableStream<Uint8Array>,
-  maxEventBytes: number
+  maxEventBytes: number,
+  maxEvents: number
 ): AsyncIterable<string> {
   const decoder = new TextDecoder();
   let buffer = "";
+  let eventCount = 0;
   for await (const bytes of stream) {
     buffer += decoder.decode(bytes, { stream: true });
     buffer = buffer.replaceAll("\r\n", "\n");
@@ -253,8 +261,11 @@ async function* parseServerSentEvents(
       enforceEventLimit(event, maxEventBytes);
       buffer = buffer.slice(boundary + 2);
       for (const line of event.split("\n")) {
-        if (line.startsWith("data:") && line.slice(5).trim())
+        if (line.startsWith("data:") && line.slice(5).trim()) {
+          eventCount += 1;
+          enforceEventCount(eventCount, maxEvents);
           yield line.slice(5).trim();
+        }
       }
       boundary = buffer.indexOf("\n\n");
     }
@@ -263,13 +274,22 @@ async function* parseServerSentEvents(
   buffer += decoder.decode();
   enforceEventLimit(buffer, maxEventBytes);
   for (const line of buffer.split("\n")) {
-    if (line.startsWith("data:") && line.slice(5).trim())
+    if (line.startsWith("data:") && line.slice(5).trim()) {
+      eventCount += 1;
+      enforceEventCount(eventCount, maxEvents);
       yield line.slice(5).trim();
+    }
   }
 }
 
 function enforceEventLimit(event: string, maxEventBytes: number): void {
   if (new TextEncoder().encode(event).byteLength > maxEventBytes) {
     throw new Error("Runtime stream event exceeds configured limit");
+  }
+}
+
+function enforceEventCount(eventCount: number, maxEvents: number): void {
+  if (eventCount > maxEvents) {
+    throw new Error("Runtime stream exceeds configured event count");
   }
 }

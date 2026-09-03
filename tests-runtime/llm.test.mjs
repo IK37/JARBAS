@@ -176,6 +176,117 @@ test("OpenAI-compatible provider rejects premature SSE EOF", async () => {
   }
 });
 
+test("OpenAI-compatible provider forwards explicit reasoning effort", async () => {
+  let requestBody;
+  const upstream = createServer(async (request, response) => {
+    requestBody = await readBody(request);
+    response.writeHead(200, { "content-type": "text/event-stream" });
+    response.end(
+      'data: {"choices":[{"delta":{"content":"direta"},"finish_reason":"stop"}]}\n\n'
+    );
+  });
+  await listen(upstream);
+  try {
+    const address = upstream.address();
+    assert.ok(address && typeof address === "object");
+    let completed = false;
+    for await (const event of createProvider(address.port).stream({
+      requestId: "reasoning-effort",
+      model: "test-model",
+      messages: [{ role: "user", content: "Oi" }],
+      reasoningEffort: "none"
+    })) {
+      if (event.type === "done") completed = true;
+    }
+    assert.equal(completed, true);
+    assert.equal(requestBody.reasoning_effort, "none");
+  } finally {
+    await close(upstream);
+  }
+});
+
+test("OpenAI-compatible provider rejects oversized SSE events", async () => {
+  const upstream = createServer((_request, response) => {
+    response.writeHead(200, { "content-type": "text/event-stream" });
+    response.end(
+      `data: ${JSON.stringify({ choices: [{ delta: { content: "x".repeat(2_000) } }] })}\n\n`
+    );
+  });
+  await listen(upstream);
+  try {
+    const address = upstream.address();
+    assert.ok(address && typeof address === "object");
+    await assert.rejects(async () => {
+      for await (const event of createProvider(address.port).stream({
+        requestId: "oversized-event",
+        model: "test-model",
+        messages: [{ role: "user", content: "Oi" }]
+      })) {
+        assert.fail(`unexpected event: ${event.type}`);
+      }
+    }, /exceeds configured limit/u);
+  } finally {
+    await close(upstream);
+  }
+});
+
+test("OpenAI-compatible provider bounds ignored reasoning events", async () => {
+  const upstream = createServer((_request, response) => {
+    response.writeHead(200, { "content-type": "text/event-stream" });
+    response.end(
+      `${Array.from(
+        { length: 11 },
+        () => 'data: {"choices":[{"delta":{"reasoning":"x"}}]}'
+      ).join("\n\n")}\n\n`
+    );
+  });
+  await listen(upstream);
+  try {
+    const address = upstream.address();
+    assert.ok(address && typeof address === "object");
+    await assert.rejects(async () => {
+      for await (const event of createProvider(address.port).stream({
+        requestId: "excessive-reasoning-events",
+        model: "test-model",
+        messages: [{ role: "user", content: "Oi" }]
+      })) {
+        assert.fail(`unexpected event: ${event.type}`);
+      }
+    }, /exceeds configured event count/u);
+  } finally {
+    await close(upstream);
+  }
+});
+
+test("OpenAI-compatible provider refuses upstream redirects", async () => {
+  const upstream = createServer((_request, response) => {
+    response.writeHead(307, { location: "https://example.com/collect" });
+    response.end();
+  });
+  await listen(upstream);
+  try {
+    const address = upstream.address();
+    assert.ok(address && typeof address === "object");
+    await assert.rejects(
+      async () => {
+        for await (const event of createProvider(address.port).stream({
+          requestId: "redirect",
+          model: "test-model",
+          messages: [{ role: "user", content: "private content" }]
+        })) {
+          assert.fail(`unexpected event: ${event.type}`);
+        }
+      },
+      (error) =>
+        error instanceof TypeError &&
+        error.cause instanceof Error &&
+        /unexpected redirect/u.test(error.cause.message)
+    );
+  } finally {
+    await close(upstream);
+  }
+});
+
 function createProvider(port) {
   return new OpenAiCompatibleProvider({
     id: "test-runtime",
@@ -192,6 +303,25 @@ function createProvider(port) {
       vision: false
     },
     requestTimeoutMs: 2_000,
-    maxStreamEventBytes: 1024
+    maxStreamEventBytes: 1024,
+    maxStreamEvents: 10
+  });
+}
+
+function readBody(request) {
+  return new Promise((resolve, reject) => {
+    let body = "";
+    request.setEncoding("utf8");
+    request.on("data", (chunk) => {
+      body += chunk;
+    });
+    request.once("error", reject);
+    request.once("end", () => {
+      try {
+        resolve(JSON.parse(body));
+      } catch (error) {
+        reject(error);
+      }
+    });
   });
 }

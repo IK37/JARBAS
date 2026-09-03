@@ -7,12 +7,15 @@ export interface ChatMessage {
   readonly content: string;
 }
 
+export type ReasoningEffort = "none" | "low" | "medium" | "high" | "max";
+
 export interface GenerationRequest {
   readonly requestId: Identifier;
   readonly model: string;
   readonly messages: readonly ChatMessage[];
   readonly temperature?: number;
   readonly maxOutputTokens?: number;
+  readonly reasoningEffort?: ReasoningEffort;
   readonly signal?: AbortSignal;
 }
 

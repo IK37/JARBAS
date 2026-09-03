@@ -2,10 +2,14 @@ import { cpus, freemem, platform, release, totalmem } from "node:os";
 import { spawnSync } from "node:child_process";
 
 const gpu = detectGpu();
-const backends = {
-  cuda: commandWorks("nvidia-smi", ["--help"]),
-  rocm: commandWorks("rocminfo", []),
-  vulkan: commandWorks("vulkaninfo", ["--summary"])
+const systemBackendTools = {
+  nvidiaSmi: probeCommand("nvidia-smi", ["--help"]),
+  rocminfo: probeCommand("rocminfo", []),
+  vulkaninfo: probeCommand("vulkaninfo", ["--summary"])
+};
+const runtimeCommands = {
+  ollama: probeVersion("ollama", ["--version"]),
+  llamaCpp: probeVersion("llama-server", ["--version"])
 };
 
 console.log(
@@ -22,7 +26,16 @@ console.log(
         freeGb: Number((freemem() / 1024 ** 3).toFixed(2))
       },
       gpu,
-      detectedBackends: backends
+      systemBackendTools,
+      runtimeCommands,
+      notes: [
+        "System tool availability does not prove or disprove a backend bundled by a runtime.",
+        ...(process.platform === "win32"
+          ? [
+              "Win32_VideoController.AdapterRAM is a 32-bit field and is not reliable for GPUs with more than 4 GiB."
+            ]
+          : [])
+      ]
     },
     null,
     2
@@ -39,9 +52,15 @@ function detectGpu() {
     const windows = run("powershell.exe", [
       "-NoProfile",
       "-Command",
-      "Get-CimInstance Win32_VideoController | Select-Object Name,AdapterRAM,DriverVersion | ConvertTo-Json -Compress"
+      "Get-CimInstance Win32_VideoController | Select-Object Name,AdapterRAM,DriverVersion,VideoProcessor,PNPDeviceID | ConvertTo-Json -Compress"
     ]);
-    if (windows) return { source: "Win32_VideoController", detail: windows };
+    if (windows) {
+      return {
+        source: "Win32_VideoController",
+        devices: parseWindowsVideoControllers(windows),
+        adapterRamReliable: false
+      };
+    }
   }
   const pci = run("lspci", ["-nn"])
     ?.split("\n")
@@ -52,10 +71,56 @@ function detectGpu() {
     : { source: "none", detail: "GPU not detected" };
 }
 
-function commandWorks(command, args) {
-  return (
-    spawnSync(command, args, { encoding: "utf8", timeout: 5_000 }).status === 0
-  );
+function parseWindowsVideoControllers(payload) {
+  try {
+    const parsed = JSON.parse(payload);
+    const devices = Array.isArray(parsed) ? parsed : [parsed];
+    return devices.flatMap((device) => {
+      if (typeof device !== "object" || device === null) return [];
+      return [
+        {
+          name: readOptionalString(device.Name) ?? "unknown",
+          reportedAdapterRamBytes: readOptionalNumber(device.AdapterRAM),
+          driverVersion: readOptionalString(device.DriverVersion),
+          videoProcessor: readOptionalString(device.VideoProcessor),
+          pnpDeviceId: readOptionalString(device.PNPDeviceID)
+        }
+      ];
+    });
+  } catch {
+    return [{ name: "unknown", rawProbe: payload }];
+  }
+}
+
+function readOptionalString(value) {
+  return typeof value === "string" && value.trim() ? value : undefined;
+}
+
+function readOptionalNumber(value) {
+  return typeof value === "number" && Number.isFinite(value)
+    ? value
+    : undefined;
+}
+
+function probeCommand(command, args) {
+  const result = spawnSync(command, args, {
+    encoding: "utf8",
+    timeout: 5_000
+  });
+  return { command, available: result.status === 0 };
+}
+
+function probeVersion(command, args) {
+  const result = spawnSync(command, args, {
+    encoding: "utf8",
+    timeout: 5_000
+  });
+  if (result.status !== 0) return { command, available: false };
+  return {
+    command,
+    available: true,
+    version: `${result.stdout}${result.stderr}`.trim() || "unknown"
+  };
 }
 
 function run(command, args) {

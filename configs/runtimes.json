@@ -14,7 +14,8 @@
         "vision": false
       },
       "requestTimeoutMs": 5000,
-      "maxStreamEventBytes": 1048576
+      "maxStreamEventBytes": 1048576,
+      "maxStreamEvents": 20000
     },
     {
       "id": "ollama-local",
@@ -31,7 +32,8 @@
         "vision": true
       },
       "requestTimeoutMs": 120000,
-      "maxStreamEventBytes": 1048576
+      "maxStreamEventBytes": 1048576,
+      "maxStreamEvents": 20000
     },
     {
       "id": "llama-cpp-local",
@@ -48,7 +50,8 @@
         "vision": false
       },
       "requestTimeoutMs": 120000,
-      "maxStreamEventBytes": 1048576
+      "maxStreamEventBytes": 1048576,
+      "maxStreamEvents": 20000
     },
     {
       "id": "nvidia-local",
@@ -65,7 +68,8 @@
         "vision": true
       },
       "requestTimeoutMs": 120000,
-      "maxStreamEventBytes": 1048576
+      "maxStreamEventBytes": 1048576,
+      "maxStreamEvents": 20000
     }
   ]
 }

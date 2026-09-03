@@ -101,6 +101,7 @@ function validateRuntimes(
       item.maxStreamEventBytes,
       `runtimes[${index}].maxStreamEventBytes`
     );
+    positiveInteger(item.maxStreamEvents, `runtimes[${index}].maxStreamEvents`);
     validateCapabilities(item.capabilities, `runtimes[${index}].capabilities`);
     if (kind === "openai_compatible" && item.endpoint === undefined) {
       throw new Error(`Runtime ${id} requires an endpoint`);
