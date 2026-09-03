@@ -86,7 +86,8 @@ function messageElement(role, content, streaming = false) {
 }
 
 async function sendMessage(content) {
-  controller = new AbortController();
+  const turnController = new AbortController();
+  controller = turnController;
   setBusy(true);
   elements.error.hidden = true;
   elements.welcome?.remove();
@@ -97,7 +98,7 @@ async function sendMessage(content) {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ sessionId, content }),
-      signal: controller.signal
+      signal: turnController.signal
     });
     if (!response.ok || !response.body)
       throw new Error(`Chat retornou HTTP ${response.status}`);
@@ -116,16 +117,25 @@ async function sendMessage(content) {
           const event = JSON.parse(line);
           if (event.type === "token")
             streamed.querySelector("p").textContent += event.text;
+          if (event.type === "error") throw new Error(event.message);
         }
         boundary = buffer.indexOf("\n");
       }
       elements.timeline.scrollTop = elements.timeline.scrollHeight;
     }
-    renderMessages(await request(`/api/sessions/${sessionId}/messages`));
-    renderHealth(await request("/api/health"));
   } catch (error) {
-    if (!controller.signal.aborted) showError(error);
+    if (!turnController.signal.aborted) showError(error);
   } finally {
+    try {
+      const [messages, health] = await Promise.all([
+        request(`/api/sessions/${sessionId}/messages`),
+        request("/api/health")
+      ]);
+      renderMessages(messages);
+      renderHealth(health);
+    } catch (error) {
+      if (!turnController.signal.aborted) showError(error);
+    }
     setBusy(false);
   }
 }

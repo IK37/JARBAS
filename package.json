@@ -5,7 +5,6 @@
   "packageManager": "pnpm@10.15.0",
   "scripts": {
     "build": "pnpm -r build",
-    "build:runtime": "node scripts/build-runtime.mjs",
     "benchmark:model": "node scripts/benchmark-openai-compatible.mjs",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test",
     "dev": "pnpm --filter @jarvis/api dev",
@@ -14,8 +13,10 @@
     "format:check": "prettier --check .",
     "hardware:detect": "node scripts/detect-hardware.mjs",
     "lint": "eslint .",
+    "security:scan": "pnpm audit --audit-level=high && node scripts/scan-secrets.mjs",
+    "smoke": "node scripts/smoke.mjs",
     "start": "pnpm --filter @jarvis/api start",
-    "test": "vitest run && pnpm build:runtime && pnpm test:runtime",
+    "test": "vitest run && pnpm build && pnpm test:runtime",
     "test:runtime": "node --test tests-runtime/*.test.mjs",
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc -b --force --pretty false"
@@ -23,6 +24,7 @@
   "devDependencies": {
     "@eslint/js": "^9.35.0",
     "@types/node": "^24.3.0",
+    "@vitest/coverage-v8": "^3.2.7",
     "eslint": "^9.35.0",
     "prettier": "^3.6.2",
     "typescript": "^5.9.2",

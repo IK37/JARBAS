@@ -1,6 +1,7 @@
 const secretKeyPattern =
-  /^(authorization|api[-_]?key|password|private[-_]?key|secret|access[-_]?token|refresh[-_]?token|token)$/i;
+  /^(authorization|proxy[-_]?authorization|api[-_]?key|x[-_]?api[-_]?key|password|private[-_]?key|secret|client[-_]?secret|access[-_]?token|refresh[-_]?token|id[-_]?token|cookie|set[-_]?cookie|jwt|token)$/i;
 const bearerPattern = /Bearer\s+[A-Za-z0-9._~+/=-]+/gi;
+const jwtPattern = /\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g;
 const knownCredentialPattern =
   /\b(sk-[A-Za-z0-9_-]{16,}|gh[pousr]_[A-Za-z0-9_]{16,})\b/g;
 const privateKeyPattern =
@@ -10,6 +11,7 @@ export function redact(value: unknown): unknown {
   if (typeof value === "string") {
     return value
       .replace(bearerPattern, "Bearer [REDACTED]")
+      .replace(jwtPattern, "[REDACTED JWT]")
       .replace(knownCredentialPattern, "[REDACTED]")
       .replace(privateKeyPattern, "[REDACTED PRIVATE KEY]");
   }

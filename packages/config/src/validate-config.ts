@@ -1,76 +1,99 @@
 import type { JarbasConfig } from "@jarvis/contracts";
 
+import { presetIds, validateAiConfig } from "./validate-ai-config.js";
+import { validatePlatformConfig } from "./validate-platform-config.js";
+import {
+  array,
+  boolean,
+  enumValue,
+  integer,
+  nonEmptyString,
+  object,
+  positiveInteger,
+  positiveNumber,
+  string
+} from "./validation-primitives.js";
+
 const loopbackHosts = new Set(["127.0.0.1", "localhost", "::1"]);
 
-export function validateConfig(config: JarbasConfig): void {
-  if (!loopbackHosts.has(config.server.host)) {
+export function validateConfig(
+  config: unknown
+): asserts config is JarbasConfig {
+  const root = object(config, "config");
+  validateServer(root.server);
+  nonEmptyString(
+    object(root.storage, "storage").databasePath,
+    "storage.databasePath"
+  );
+
+  const runtime = object(root.runtime, "runtime");
+  const defaultProviderId = nonEmptyString(
+    runtime.defaultProviderId,
+    "runtime.defaultProviderId"
+  );
+  const offline = boolean(runtime.offline, "runtime.offline");
+
+  const generation = object(root.generation, "generation");
+  const maxOutputTokens = positiveInteger(
+    generation.maxOutputTokens,
+    "generation.maxOutputTokens"
+  );
+  positiveInteger(
+    generation.maxOutputCharacters,
+    "generation.maxOutputCharacters"
+  );
+  positiveNumber(
+    generation.estimatedCharactersPerToken,
+    "generation.estimatedCharactersPerToken"
+  );
+
+  const activePreset = enumValue(
+    object(root.routing, "routing").preset,
+    "routing.preset",
+    presetIds
+  );
+  validateObservability(root.observability);
+  validateAiConfig(root, {
+    activePreset,
+    defaultProviderId,
+    maxOutputTokens,
+    offline
+  });
+  validatePlatformConfig(root);
+}
+
+function validateServer(value: unknown): void {
+  const server = object(value, "server");
+  const host = string(server.host, "server.host");
+  if (!loopbackHosts.has(host)) {
     throw new Error(
       "JARBAS_SERVER_HOST must be a loopback address in Foundation V1"
     );
   }
-  if (
-    !Number.isInteger(config.server.port) ||
-    config.server.port < 1 ||
-    config.server.port > 65_535
-  ) {
-    throw new Error("Server port must be an integer between 1 and 65535");
+  integer(server.port, "server.port", 1, 65_535);
+  positiveInteger(server.maxRequestBodyBytes, "server.maxRequestBodyBytes");
+  positiveInteger(server.maxMessageCharacters, "server.maxMessageCharacters");
+  for (const [index, value] of array(
+    server.allowedOrigins,
+    "server.allowedOrigins"
+  ).entries()) {
+    const origin = new URL(string(value, `server.allowedOrigins[${index}]`));
+    const hostname = origin.hostname.replace(/^\[|\]$/gu, "");
+    if (origin.protocol !== "http:" || !loopbackHosts.has(hostname)) {
+      throw new Error("Foundation origins must use HTTP on a loopback host");
+    }
   }
-  if (config.observability.includeContent !== false) {
+}
+
+function validateObservability(value: unknown): void {
+  const observability = object(value, "observability");
+  enumValue(observability.level, "observability.level", [
+    "debug",
+    "info",
+    "warn",
+    "error"
+  ] as const);
+  if (observability.includeContent !== false) {
     throw new Error("Content logging is disabled by security policy");
-  }
-
-  const runtimeIds = new Set(config.runtimes.map((runtime) => runtime.id));
-  if (!runtimeIds.has(config.runtime.defaultProviderId)) {
-    throw new Error(
-      `Unknown default runtime: ${config.runtime.defaultProviderId}`
-    );
-  }
-  if (
-    new Set(config.runtimes.map((runtime) => runtime.id)).size !==
-    config.runtimes.length
-  ) {
-    throw new Error("Runtime ids must be unique");
-  }
-  for (const runtime of config.runtimes) {
-    if (!runtime.endpoint) continue;
-    const endpoint = new URL(runtime.endpoint);
-    if (endpoint.username || endpoint.password) {
-      throw new Error(
-        `Runtime ${runtime.id} endpoint must not contain credentials`
-      );
-    }
-    if (runtime.local && !loopbackHosts.has(endpoint.hostname)) {
-      throw new Error(
-        `Local runtime ${runtime.id} must use a loopback endpoint`
-      );
-    }
-  }
-  if (
-    new Set(config.models.map((model) => model.id)).size !==
-    config.models.length
-  ) {
-    throw new Error("Model ids must be unique");
-  }
-
-  const preset = config.presets.find(
-    (candidate) => candidate.id === config.routing.preset
-  );
-  if (!preset) {
-    throw new Error(`Unknown routing preset: ${config.routing.preset}`);
-  }
-  const modelIds = new Set(config.models.map((model) => model.id));
-  for (const modelId of Object.values(preset.routes)) {
-    if (!modelIds.has(modelId)) {
-      throw new Error(
-        `Preset ${preset.id} references unknown model ${modelId}`
-      );
-    }
-  }
-
-  const selectedRuntime = config.runtimes.find(
-    (runtime) => runtime.id === config.runtime.defaultProviderId
-  );
-  if (config.runtime.offline && selectedRuntime?.local !== true) {
-    throw new Error("Offline mode cannot select a remote runtime");
   }
 }

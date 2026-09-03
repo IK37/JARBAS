@@ -13,10 +13,14 @@ export default tseslint.config(
     ],
     languageOptions: {
       globals: {
+        AbortController: "readonly",
+        Buffer: "readonly",
         console: "readonly",
         fetch: "readonly",
         performance: "readonly",
         process: "readonly",
+        setTimeout: "readonly",
+        structuredClone: "readonly",
         TextDecoder: "readonly",
         URL: "readonly"
       }

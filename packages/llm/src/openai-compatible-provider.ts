@@ -62,7 +62,10 @@ export class OpenAiCompatibleProvider implements LlmProvider {
     let finishReason: "stop" | "length" | "cancelled" | "unknown" = "unknown";
     let usage: { promptTokens?: number; completionTokens?: number } | undefined;
 
-    for await (const payload of parseServerSentEvents(response.body)) {
+    for await (const payload of parseServerSentEvents(
+      response.body,
+      this.runtime.maxStreamEventBytes
+    )) {
       if (payload === "[DONE]") break;
       const chunk = JSON.parse(payload) as StreamChunk;
       const choice = chunk.choices?.[0];
@@ -71,13 +74,17 @@ export class OpenAiCompatibleProvider implements LlmProvider {
       if (choice?.finish_reason)
         finishReason = normalizeFinishReason(choice.finish_reason);
       if (chunk.usage) {
+        const promptTokens = tokenCount(
+          chunk.usage.prompt_tokens,
+          "prompt_tokens"
+        );
+        const completionTokens = tokenCount(
+          chunk.usage.completion_tokens,
+          "completion_tokens"
+        );
         usage = {
-          ...(chunk.usage.prompt_tokens === undefined
-            ? {}
-            : { promptTokens: chunk.usage.prompt_tokens }),
-          ...(chunk.usage.completion_tokens === undefined
-            ? {}
-            : { completionTokens: chunk.usage.completion_tokens })
+          ...(promptTokens === undefined ? {} : { promptTokens }),
+          ...(completionTokens === undefined ? {} : { completionTokens })
         };
       }
     }
@@ -157,8 +164,17 @@ function normalizeFinishReason(
   return "unknown";
 }
 
+function tokenCount(value: unknown, field: string): number | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) {
+    throw new Error(`Runtime returned invalid ${field}`);
+  }
+  return value;
+}
+
 async function* parseServerSentEvents(
-  stream: ReadableStream<Uint8Array>
+  stream: ReadableStream<Uint8Array>,
+  maxEventBytes: number
 ): AsyncIterable<string> {
   const decoder = new TextDecoder();
   let buffer = "";
@@ -168,6 +184,7 @@ async function* parseServerSentEvents(
     let boundary = buffer.indexOf("\n\n");
     while (boundary >= 0) {
       const event = buffer.slice(0, boundary);
+      enforceEventLimit(event, maxEventBytes);
       buffer = buffer.slice(boundary + 2);
       for (const line of event.split("\n")) {
         if (line.startsWith("data:") && line.slice(5).trim())
@@ -175,10 +192,18 @@ async function* parseServerSentEvents(
       }
       boundary = buffer.indexOf("\n\n");
     }
+    enforceEventLimit(buffer, maxEventBytes);
   }
   buffer += decoder.decode();
+  enforceEventLimit(buffer, maxEventBytes);
   for (const line of buffer.split("\n")) {
     if (line.startsWith("data:") && line.slice(5).trim())
       yield line.slice(5).trim();
+  }
+}
+
+function enforceEventLimit(event: string, maxEventBytes: number): void {
+  if (new TextEncoder().encode(event).byteLength > maxEventBytes) {
+    throw new Error("Runtime stream event exceeds configured limit");
   }
 }

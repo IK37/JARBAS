@@ -10,9 +10,6 @@
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
-    "@jarvis/contracts": "workspace:*",
-    "@jarvis/observability": "workspace:*",
-    "@jarvis/routing": "workspace:*",
-    "@jarvis/storage": "workspace:*"
+    "@jarvis/contracts": "workspace:*"
   }
 }

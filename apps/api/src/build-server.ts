@@ -10,16 +10,36 @@ import { resolve } from "node:path";
 import type { JarbasApplication } from "@jarvis/application";
 import type { ChatRequest, JarbasConfig, ModelTask } from "@jarvis/contracts";
 
+import {
+  applySecurityHeaders,
+  enforceOrigin,
+  httpStatus,
+  HttpError,
+  readJsonBody,
+  requireJsonContentType,
+  sendJson,
+  writeNdjson
+} from "./http-boundary.js";
+
 interface CreateSessionBody {
   readonly projectId?: string;
   readonly title?: string;
 }
 
 interface ChatBody {
-  readonly sessionId?: string;
-  readonly content?: string;
+  readonly sessionId: string;
+  readonly content: string;
   readonly task?: ModelTask;
 }
+
+const modelTasks = new Set<ModelTask>([
+  "simple_conversation",
+  "deep_reasoning",
+  "coding",
+  "memory_extraction",
+  "summarization",
+  "tool_selection"
+]);
 
 export function buildServer(
   config: JarbasConfig,
@@ -33,7 +53,7 @@ export function buildServer(
           response.destroy(error instanceof Error ? error : undefined);
           return;
         }
-        const status = error instanceof HttpError ? error.status : 500;
+        const status = httpStatus(error);
         sendJson(response, status, {
           error:
             status < 500 && error instanceof Error
@@ -77,7 +97,10 @@ async function handleRequest(
     return;
   }
   if (request.method === "POST" && url.pathname === "/api/sessions") {
-    const body = await readJsonBody<CreateSessionBody>(request);
+    requireJsonContentType(request);
+    const body = validateCreateSessionBody(
+      await readJsonBody(request, config.server.maxRequestBodyBytes)
+    );
     const session = application.createSession(
       normalizedText(body.projectId, "inbox", 100),
       normalizedText(body.title, "Nova conversa", 200)
@@ -96,11 +119,11 @@ async function handleRequest(
     return;
   }
   if (request.method === "POST" && url.pathname === "/api/chat") {
-    const body = await readJsonBody<ChatBody>(request);
-    if (!body.sessionId || !body.content?.trim()) {
-      throw new HttpError(400, "sessionId and content are required");
-    }
-    if (body.content.length > 50_000)
+    requireJsonContentType(request);
+    const body = validateChatBody(
+      await readJsonBody(request, config.server.maxRequestBodyBytes)
+    );
+    if (body.content.length > config.server.maxMessageCharacters)
       throw new HttpError(413, "Message exceeds limit");
     const abortController = new AbortController();
     response.once("close", () => abortController.abort());
@@ -109,11 +132,21 @@ async function handleRequest(
       content: body.content,
       ...(body.task ? { task: body.task } : {})
     };
-    response.writeHead(200, {
-      "content-type": "application/x-ndjson; charset=utf-8"
-    });
-    for await (const event of application.chat(input, abortController.signal)) {
-      response.write(`${JSON.stringify(event)}\n`);
+    const stream = application.chat(input, abortController.signal);
+    const iterator = stream[Symbol.asyncIterator]();
+    const first = await iterator.next();
+    try {
+      response.writeHead(200, {
+        "content-type": "application/x-ndjson; charset=utf-8"
+      });
+      if (!first.done) await writeNdjson(response, first.value);
+      while (true) {
+        const item = await iterator.next();
+        if (item.done) break;
+        await writeNdjson(response, item.value);
+      }
+    } finally {
+      await iterator.return?.();
     }
     response.end();
     return;
@@ -139,67 +172,44 @@ function normalizedText(
   return normalized.slice(0, maxLength);
 }
 
-class HttpError extends Error {
-  public constructor(
-    public readonly status: number,
-    message: string
-  ) {
-    super(message);
-    this.name = "HttpError";
+function validateCreateSessionBody(
+  body: Record<string, unknown>
+): CreateSessionBody {
+  return {
+    ...(body.projectId === undefined
+      ? {}
+      : { projectId: requiredString(body.projectId, "projectId") }),
+    ...(body.title === undefined
+      ? {}
+      : { title: requiredString(body.title, "title") })
+  };
+}
+
+function validateChatBody(body: Record<string, unknown>): ChatBody {
+  const sessionId = requiredString(body.sessionId, "sessionId");
+  const content = requiredString(body.content, "content");
+  if (!sessionId || !content.trim()) {
+    throw new HttpError(400, "sessionId and content are required");
   }
-}
-
-async function readJsonBody<T>(request: IncomingMessage): Promise<T> {
-  const chunks: Buffer[] = [];
-  let bytes = 0;
-  for await (const chunk of request) {
-    const buffer = Buffer.isBuffer(chunk)
-      ? chunk
-      : Buffer.from(chunk as Uint8Array);
-    bytes += buffer.length;
-    if (bytes > 1_000_000)
-      throw new HttpError(413, "Request body exceeds limit");
-    chunks.push(buffer);
+  if (body.task !== undefined && !isModelTask(body.task)) {
+    throw new HttpError(400, "task is invalid");
   }
-  try {
-    return JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}") as T;
-  } catch {
-    throw new HttpError(400, "Invalid JSON body");
+  return {
+    sessionId,
+    content,
+    ...(body.task === undefined ? {} : { task: body.task })
+  };
+}
+
+function requiredString(value: unknown, field: string): string {
+  if (typeof value !== "string") {
+    throw new HttpError(400, `${field} must be a string`);
   }
+  return value;
 }
 
-function sendJson(
-  response: ServerResponse,
-  status: number,
-  body: unknown
-): void {
-  response.writeHead(status, {
-    "content-type": "application/json; charset=utf-8"
-  });
-  response.end(JSON.stringify(body));
-}
-
-function enforceOrigin(
-  config: JarbasConfig,
-  request: IncomingMessage,
-  response: ServerResponse
-): void {
-  const origin = request.headers.origin;
-  if (!origin) return;
-  if (!config.server.allowedOrigins.includes(origin))
-    throw new HttpError(403, "Origin not allowed");
-  response.setHeader("access-control-allow-origin", origin);
-  response.setHeader("vary", "Origin");
-}
-
-function applySecurityHeaders(response: ServerResponse): void {
-  response.setHeader(
-    "content-security-policy",
-    "default-src 'self'; connect-src 'self'; style-src 'self'; script-src 'self'; base-uri 'none'; frame-ancestors 'none'"
-  );
-  response.setHeader("x-content-type-options", "nosniff");
-  response.setHeader("referrer-policy", "no-referrer");
-  response.setHeader("cache-control", "no-store");
+function isModelTask(value: unknown): value is ModelTask {
+  return typeof value === "string" && modelTasks.has(value as ModelTask);
 }
 
 const staticAssets: Readonly<

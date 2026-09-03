@@ -19,6 +19,11 @@ export interface MessageRecord {
   readonly createdAt: IsoDateTime;
 }
 
+export interface DeleteMessagesByRequestInput {
+  readonly sessionId: Identifier;
+  readonly requestId: Identifier;
+}
+
 export interface RequestMetricRecord {
   readonly requestId: Identifier;
   readonly sessionId: Identifier;

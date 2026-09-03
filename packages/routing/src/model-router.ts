@@ -34,6 +34,9 @@ export class ModelRouter {
       modelId,
       providerId,
       providerModel,
+      inputTokenBudget: model.defaultContextTokens,
+      maxOutputTokens: this.config.generation.maxOutputTokens,
+      maxOutputCharacters: this.config.generation.maxOutputCharacters,
       reason: `Preset ${this.config.routing.preset} maps ${task} to ${modelId}`
     };
   }

@@ -72,6 +72,9 @@ export interface ModelRoute {
   readonly modelId: string;
   readonly providerId: string;
   readonly providerModel: string;
+  readonly inputTokenBudget: number;
+  readonly maxOutputTokens: number;
+  readonly maxOutputCharacters: number;
   readonly reason: string;
 }
 
@@ -86,4 +89,10 @@ export type ChatStreamEvent =
       readonly type: "done";
       readonly requestId: Identifier;
       readonly finishReason: "stop" | "length" | "cancelled" | "unknown";
+    }
+  | {
+      readonly type: "error";
+      readonly requestId: Identifier;
+      readonly code: string;
+      readonly message: string;
     };

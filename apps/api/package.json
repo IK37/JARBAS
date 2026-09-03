@@ -15,6 +15,7 @@
     "@jarvis/contracts": "workspace:*",
     "@jarvis/llm": "workspace:*",
     "@jarvis/observability": "workspace:*",
+    "@jarvis/routing": "workspace:*",
     "@jarvis/storage": "workspace:*"
   }
 }

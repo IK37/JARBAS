@@ -41,6 +41,7 @@ export interface RuntimeDefinition {
     "auto" | "mock" | "cpu" | "vulkan" | "rocm" | "cuda" | "remote";
   readonly capabilities: RuntimeCapabilities;
   readonly requestTimeoutMs: number;
+  readonly maxStreamEventBytes: number;
 }
 
 export interface ModelPreset {
@@ -71,14 +72,20 @@ export interface JarbasConfig {
     readonly host: string;
     readonly port: number;
     readonly allowedOrigins: readonly string[];
+    readonly maxRequestBodyBytes: number;
+    readonly maxMessageCharacters: number;
   };
   readonly storage: {
     readonly databasePath: string;
   };
   readonly runtime: {
     readonly defaultProviderId: string;
-    readonly allowCpuFallback: boolean;
     readonly offline: boolean;
+  };
+  readonly generation: {
+    readonly maxOutputTokens: number;
+    readonly maxOutputCharacters: number;
+    readonly estimatedCharactersPerToken: number;
   };
   readonly routing: {
     readonly preset: ModelPreset["id"];

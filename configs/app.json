@@ -2,15 +2,21 @@
   "server": {
     "host": "127.0.0.1",
     "port": 8787,
-    "allowedOrigins": ["http://127.0.0.1:5173", "http://localhost:5173"]
+    "allowedOrigins": ["http://127.0.0.1:5173", "http://localhost:5173"],
+    "maxRequestBodyBytes": 1000000,
+    "maxMessageCharacters": 50000
   },
   "storage": {
     "databasePath": "var/jarbas.db"
   },
   "runtime": {
     "defaultProviderId": "ollama-local",
-    "allowCpuFallback": false,
     "offline": true
+  },
+  "generation": {
+    "maxOutputTokens": 2048,
+    "maxOutputCharacters": 20000,
+    "estimatedCharactersPerToken": 3
   },
   "routing": {
     "preset": "balanced"

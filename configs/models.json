@@ -7,7 +7,7 @@
         "llama-cpp-local": "models/qwen3.5-4b-q4_k_m.gguf",
         "nvidia-local": "Qwen/Qwen3.5-4B"
       },
-      "roles": ["fast", "primary", "vision"],
+      "roles": ["fast", "primary", "reasoning", "coding", "vision"],
       "parameterScale": "4B",
       "quantization": "Q4_K_M",
       "contextWindow": 262144,

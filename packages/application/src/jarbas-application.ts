@@ -2,31 +2,45 @@ import { randomUUID } from "node:crypto";
 
 import type {
   ChatRequest,
+  ChatMessage,
   ChatStreamEvent,
   ComponentHealth,
   JarbasConfig,
   LlmProvider,
   MessageRecord,
+  ModelRoute,
   ProviderHealth,
   RequestMetricRecord,
   SessionRecord,
-  SystemHealth
+  SystemHealth,
+  TokenUsage
 } from "@jarvis/contracts";
-import type { Logger } from "@jarvis/observability";
-import { ModelRouter } from "@jarvis/routing";
-import type { SessionStore } from "@jarvis/storage";
+
+import type { ContextWindowManager } from "./context-window-manager.js";
+import {
+  InputContextLimitError,
+  InvalidChatRequestError,
+  ProviderUnavailableError,
+  SessionBusyError,
+  SessionNotFoundError
+} from "./errors.js";
+import type {
+  ApplicationLogger,
+  ModelRouteResolver,
+  SessionStorePort
+} from "./ports.js";
 
 export class JarbasApplication {
-  private readonly router: ModelRouter;
+  private readonly activeSessions = new Set<string>();
 
   public constructor(
     private readonly config: JarbasConfig,
-    private readonly store: SessionStore,
+    private readonly store: SessionStorePort,
     private readonly providers: ReadonlyMap<string, LlmProvider>,
-    private readonly logger: Logger
-  ) {
-    this.router = new ModelRouter(config);
-  }
+    private readonly logger: ApplicationLogger,
+    private readonly router: ModelRouteResolver,
+    private readonly contextWindow: ContextWindowManager
+  ) {}
 
   public createSession(
     projectId = "inbox",
@@ -47,16 +61,58 @@ export class JarbasApplication {
     request: ChatRequest,
     signal?: AbortSignal
   ): AsyncIterable<ChatStreamEvent> {
-    if (!request.content.trim())
-      throw new Error("Message content cannot be empty");
-    if (!this.store.getSession(request.sessionId))
-      throw new Error("Session not found");
+    if (!request.content.trim()) {
+      throw new InvalidChatRequestError("Message content cannot be empty");
+    }
+    if (!this.store.getSession(request.sessionId)) {
+      throw new SessionNotFoundError();
+    }
 
-    const requestId = randomUUID();
     const route = this.router.route(request.task ?? "simple_conversation");
     const provider = this.providers.get(route.providerId);
-    if (!provider)
-      throw new Error(`Provider not registered: ${route.providerId}`);
+    if (!provider) throw new ProviderUnavailableError(route.providerId);
+    if (this.activeSessions.has(request.sessionId)) {
+      throw new SessionBusyError();
+    }
+
+    this.activeSessions.add(request.sessionId);
+    try {
+      yield* this.executeTurn(request, route, provider, signal);
+    } finally {
+      this.activeSessions.delete(request.sessionId);
+    }
+  }
+
+  private async *executeTurn(
+    request: ChatRequest,
+    route: ModelRoute,
+    provider: LlmProvider,
+    signal?: AbortSignal
+  ): AsyncIterable<ChatStreamEvent> {
+    const requestId = randomUUID();
+    const candidateMessages: ChatMessage[] = [
+      ...this.store
+        .listMessages(request.sessionId)
+        .filter(({ role }) => role === "user" || role === "assistant")
+        .map(({ role, content }) => ({ role, content })),
+      { role: "user", content: request.content }
+    ];
+    const context = this.contextWindow.select(
+      candidateMessages,
+      route.inputTokenBudget
+    );
+    if (context.messages.length === 0 && candidateMessages.length > 0) {
+      throw new InputContextLimitError();
+    }
+    if (context.droppedMessages > 0) {
+      this.logger.log("info", "chat.context_truncated", {
+        requestId,
+        sessionId: request.sessionId,
+        droppedMessages: context.droppedMessages,
+        estimatedTokens: context.estimatedTokens,
+        inputTokenBudget: route.inputTokenBudget
+      });
+    }
 
     const startedAt = new Date();
     const startedPerformance = performance.now();
@@ -68,6 +124,9 @@ export class JarbasApplication {
       ChatStreamEvent,
       { type: "done" }
     >["finishReason"] = "unknown";
+    let usage: TokenUsage | undefined;
+    let receivedDone = false;
+    let outputLimitReached = false;
 
     this.store.appendMessage({
       sessionId: request.sessionId,
@@ -75,50 +134,85 @@ export class JarbasApplication {
       role: "user",
       content: request.content
     });
-    const messages = this.store
-      .listMessages(request.sessionId)
-      .filter(({ role }) => role === "user" || role === "assistant")
-      .map(({ role, content }) => ({ role, content }));
 
-    yield { type: "route", requestId, route };
     try {
+      yield { type: "route", requestId, route };
       for await (const event of provider.stream({
         requestId,
         model: route.providerModel,
-        messages,
+        messages: context.messages,
+        maxOutputTokens: route.maxOutputTokens,
         ...(signal ? { signal } : {})
       })) {
         if (event.type === "token") {
           firstTokenAt ??= performance.now();
-          assistantContent += event.text;
-          yield event;
+          const availableCharacters =
+            route.maxOutputCharacters - assistantContent.length;
+          const accepted = event.text.slice(0, availableCharacters);
+          if (accepted) {
+            assistantContent += accepted;
+            yield { type: "token", text: accepted };
+          }
+          if (accepted.length < event.text.length || availableCharacters <= 0) {
+            outputLimitReached = true;
+            break;
+          }
         } else {
+          receivedDone = true;
           finishReason = event.finishReason;
+          usage = validateTokenUsage(event.usage);
           status =
             event.finishReason === "cancelled" ? "cancelled" : "completed";
         }
       }
-      if (status === "failed")
-        status = signal?.aborted ? "cancelled" : "completed";
+      if (outputLimitReached) {
+        finishReason = "length";
+        status = "completed";
+      } else if (!receivedDone) {
+        throw new Error("Provider stream ended without a terminal event");
+      }
+      if (status === "completed" && !assistantContent) {
+        throw new Error("Provider completed without assistant content");
+      }
       yield { type: "done", requestId, finishReason };
     } catch (error) {
-      status = signal?.aborted ? "cancelled" : "failed";
+      const cancelled = signal?.aborted || isAbortError(error);
+      status = cancelled ? "cancelled" : "failed";
       errorCode = error instanceof Error ? error.name : "UNKNOWN_ERROR";
-      this.logger.log("error", "chat.failed", {
-        requestId,
-        sessionId: request.sessionId,
-        providerId: route.providerId,
-        modelId: route.modelId,
-        errorCode
-      });
-      throw error;
+      this.logger.log(
+        cancelled ? "info" : "error",
+        cancelled ? "chat.cancelled" : "chat.failed",
+        {
+          requestId,
+          sessionId: request.sessionId,
+          providerId: route.providerId,
+          modelId: route.modelId,
+          errorCode
+        }
+      );
+      if (cancelled) {
+        yield { type: "done", requestId, finishReason: "cancelled" };
+      } else {
+        yield {
+          type: "error",
+          requestId,
+          code: errorCode,
+          message: "Runtime generation failed"
+        };
+      }
     } finally {
-      if (assistantContent) {
+      if (status === "failed" && signal?.aborted) status = "cancelled";
+      if (status === "completed") {
         this.store.appendMessage({
           sessionId: request.sessionId,
           requestId,
           role: "assistant",
           content: assistantContent
+        });
+      } else {
+        this.store.deleteMessagesByRequest({
+          sessionId: request.sessionId,
+          requestId
         });
       }
       const finishedAt = new Date();
@@ -136,6 +230,12 @@ export class JarbasApplication {
               timeToFirstTokenMs: Math.round(firstTokenAt - startedPerformance)
             }),
         durationMs: finishedAt.getTime() - startedAt.getTime(),
+        ...(usage?.promptTokens === undefined
+          ? {}
+          : { promptTokens: usage.promptTokens }),
+        ...(usage?.completionTokens === undefined
+          ? {}
+          : { completionTokens: usage.completionTokens }),
         ...(errorCode ? { errorCode } : {})
       });
     }
@@ -208,4 +308,20 @@ export class JarbasApplication {
   public close(): void {
     this.store.close();
   }
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === "AbortError";
+}
+
+function validateTokenUsage(
+  usage: TokenUsage | undefined
+): TokenUsage | undefined {
+  if (!usage) return undefined;
+  for (const [name, value] of Object.entries(usage)) {
+    if (value !== undefined && (!Number.isSafeInteger(value) || value < 0)) {
+      throw new Error(`Provider returned invalid ${name}`);
+    }
+  }
+  return usage;
 }

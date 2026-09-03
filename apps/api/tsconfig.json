@@ -8,6 +8,7 @@
     { "path": "../../packages/observability" },
     { "path": "../../packages/llm" },
     { "path": "../../packages/storage" },
+    { "path": "../../packages/routing" },
     { "path": "../../packages/application" }
   ]
 }

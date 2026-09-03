@@ -7,18 +7,18 @@ import { validateConfig } from "./validate-config.js";
 
 type Environment = Readonly<Record<string, string | undefined>>;
 
-async function readJson<T>(path: string): Promise<T> {
+async function readJson(path: string): Promise<Record<string, unknown>> {
   const value: unknown = JSON.parse(await readFile(path, "utf8"));
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     throw new Error(`Configuration file must contain an object: ${path}`);
   }
-  return value as T;
+  return value as Record<string, unknown>;
 }
 
 function integerFromEnvironment(
   value: string | undefined,
-  fallback: number
-): number {
+  fallback: unknown
+): unknown {
   if (value === undefined) return fallback;
   const parsed = Number(value);
   if (!Number.isInteger(parsed))
@@ -32,59 +32,51 @@ export async function loadConfig(
 ): Promise<JarbasConfig> {
   const [app, runtimeFile, modelFile, hardwareFile, privacyFile] =
     await Promise.all([
-      readJson<
-        Omit<
-          JarbasConfig,
-          | "runtimes"
-          | "models"
-          | "presets"
-          | "hardwareProfiles"
-          | "externalDataPolicy"
-        >
-      >(resolve(directory, "app.json")),
-      readJson<Pick<JarbasConfig, "runtimes">>(
-        resolve(directory, "runtimes.json")
-      ),
-      readJson<Pick<JarbasConfig, "models" | "presets">>(
-        resolve(directory, "models.json")
-      ),
-      readJson<Pick<JarbasConfig, "hardwareProfiles">>(
-        resolve(directory, "hardware.json")
-      ),
-      readJson<Pick<JarbasConfig, "externalDataPolicy">>(
-        resolve(directory, "privacy.json")
-      )
+      readJson(resolve(directory, "app.json")),
+      readJson(resolve(directory, "runtimes.json")),
+      readJson(resolve(directory, "models.json")),
+      readJson(resolve(directory, "hardware.json")),
+      readJson(resolve(directory, "privacy.json"))
     ]);
 
-  const config: JarbasConfig = {
+  const server = section(app.server, "app.server");
+  const storage = section(app.storage, "app.storage");
+  const runtime = section(app.runtime, "app.runtime");
+  const routing = section(app.routing, "app.routing");
+  const config: unknown = {
     ...app,
     server: {
-      ...app.server,
-      host: environment.JARBAS_SERVER_HOST ?? app.server.host,
-      port: integerFromEnvironment(
-        environment.JARBAS_SERVER_PORT,
-        app.server.port
-      )
+      ...server,
+      host: environment.JARBAS_SERVER_HOST ?? server.host,
+      port: integerFromEnvironment(environment.JARBAS_SERVER_PORT, server.port)
     },
     storage: {
-      databasePath: environment.JARBAS_DATABASE_PATH ?? app.storage.databasePath
+      ...storage,
+      databasePath: environment.JARBAS_DATABASE_PATH ?? storage.databasePath
     },
     runtime: {
-      ...app.runtime,
+      ...runtime,
       defaultProviderId:
-        environment.JARBAS_PROVIDER ?? app.runtime.defaultProviderId
+        environment.JARBAS_PROVIDER ?? runtime.defaultProviderId
     },
     routing: {
-      preset:
-        (environment.JARBAS_PRESET as
-          JarbasConfig["routing"]["preset"] | undefined) ?? app.routing.preset
+      ...routing,
+      preset: environment.JARBAS_PRESET ?? routing.preset
     },
-    ...runtimeFile,
-    ...modelFile,
-    ...hardwareFile,
-    ...privacyFile
+    runtimes: runtimeFile.runtimes,
+    models: modelFile.models,
+    presets: modelFile.presets,
+    hardwareProfiles: hardwareFile.hardwareProfiles,
+    externalDataPolicy: privacyFile.externalDataPolicy
   };
 
   validateConfig(config);
   return config;
+}
+
+function section(value: unknown, path: string): Record<string, unknown> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error(`${path} must be an object`);
+  }
+  return value as Record<string, unknown>;
 }
