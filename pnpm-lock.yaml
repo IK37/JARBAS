@@ -10,6 +10,24 @@ importers:
       "@eslint/js":
         specifier: ^9.35.0
         version: 9.39.5
+      "@jarvis/application":
+        specifier: workspace:*
+        version: link:packages/application
+      "@jarvis/config":
+        specifier: workspace:*
+        version: link:packages/config
+      "@jarvis/llm":
+        specifier: workspace:*
+        version: link:packages/llm
+      "@jarvis/observability":
+        specifier: workspace:*
+        version: link:packages/observability
+      "@jarvis/routing":
+        specifier: workspace:*
+        version: link:packages/routing
+      "@jarvis/storage":
+        specifier: workspace:*
+        version: link:packages/storage
       "@types/node":
         specifier: ^24.3.0
         version: 24.13.3
