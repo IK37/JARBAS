@@ -3,7 +3,11 @@ import { dirname, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { randomUUID } from "node:crypto";
 
-import type { MessageRecord, RequestMetricRecord, SessionRecord } from "@jarvis/contracts";
+import type {
+  MessageRecord,
+  RequestMetricRecord,
+  SessionRecord
+} from "@jarvis/contracts";
 
 import type { AppendMessageInput, SessionStore } from "./session-store.js";
 
@@ -73,8 +77,10 @@ export class SqliteSessionStore implements SessionStore {
   private constructor(private readonly database: DatabaseSync) {}
 
   public static async open(databasePath: string): Promise<SqliteSessionStore> {
-    const resolvedPath = databasePath === ":memory:" ? databasePath : resolve(databasePath);
-    if (resolvedPath !== ":memory:") await mkdir(dirname(resolvedPath), { recursive: true });
+    const resolvedPath =
+      databasePath === ":memory:" ? databasePath : resolve(databasePath);
+    if (resolvedPath !== ":memory:")
+      await mkdir(dirname(resolvedPath), { recursive: true });
     const database = new DatabaseSync(resolvedPath);
     const store = new SqliteSessionStore(database);
     store.migrate();
@@ -87,11 +93,13 @@ export class SqliteSessionStore implements SessionStore {
     this.database.exec("BEGIN IMMEDIATE");
     try {
       this.database
-        .prepare("INSERT OR IGNORE INTO projects (id, name, created_at) VALUES (?, ?, ?)")
+        .prepare(
+          "INSERT OR IGNORE INTO projects (id, name, created_at) VALUES (?, ?, ?)"
+        )
         .run(projectId, projectId === "inbox" ? "Inbox" : projectId, now);
       this.database
         .prepare(
-          "INSERT INTO sessions (id, project_id, title, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+          "INSERT INTO sessions (id, project_id, title, created_at, updated_at) VALUES (?, ?, ?, ?, ?)"
         )
         .run(id, projectId, title, now, now);
       this.database.exec("COMMIT");
@@ -104,7 +112,9 @@ export class SqliteSessionStore implements SessionStore {
 
   public getSession(id: string): SessionRecord | undefined {
     const row = this.database
-      .prepare("SELECT id, project_id, title, created_at, updated_at FROM sessions WHERE id = ?")
+      .prepare(
+        "SELECT id, project_id, title, created_at, updated_at FROM sessions WHERE id = ?"
+      )
       .get(id) as unknown as SessionRow | undefined;
     return row ? mapSession(row) : undefined;
   }
@@ -112,7 +122,7 @@ export class SqliteSessionStore implements SessionStore {
   public listMessages(sessionId: string): readonly MessageRecord[] {
     const rows = this.database
       .prepare(
-        "SELECT id, session_id, request_id, role, content, ordinal, created_at FROM messages WHERE session_id = ? ORDER BY ordinal",
+        "SELECT id, session_id, request_id, role, content, ordinal, created_at FROM messages WHERE session_id = ? ORDER BY ordinal"
       )
       .all(sessionId) as unknown as MessageRow[];
     return rows.map(mapMessage);
@@ -124,11 +134,13 @@ export class SqliteSessionStore implements SessionStore {
     this.database.exec("BEGIN IMMEDIATE");
     try {
       const ordinalRow = this.database
-        .prepare("SELECT COALESCE(MAX(ordinal), -1) + 1 AS ordinal FROM messages WHERE session_id = ?")
+        .prepare(
+          "SELECT COALESCE(MAX(ordinal), -1) + 1 AS ordinal FROM messages WHERE session_id = ?"
+        )
         .get(input.sessionId) as unknown as { ordinal: number };
       this.database
         .prepare(
-          "INSERT INTO messages (id, session_id, request_id, role, content, ordinal, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+          "INSERT INTO messages (id, session_id, request_id, role, content, ordinal, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
         )
         .run(
           id,
@@ -137,7 +149,7 @@ export class SqliteSessionStore implements SessionStore {
           input.role,
           input.content,
           ordinalRow.ordinal,
-          createdAt,
+          createdAt
         );
       this.database
         .prepare("UPDATE sessions SET updated_at = ? WHERE id = ?")
@@ -156,7 +168,7 @@ export class SqliteSessionStore implements SessionStore {
         `INSERT OR REPLACE INTO request_metrics (
           request_id, session_id, provider_id, model_id, status, started_at, finished_at,
           first_token_ms, duration_ms, prompt_tokens, completion_tokens, error_code
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         metric.requestId,
@@ -170,7 +182,7 @@ export class SqliteSessionStore implements SessionStore {
         metric.durationMs,
         metric.promptTokens ?? null,
         metric.completionTokens ?? null,
-        metric.errorCode ?? null,
+        metric.errorCode ?? null
       );
   }
 
@@ -182,14 +194,15 @@ export class SqliteSessionStore implements SessionStore {
         name: "storage" as const,
         status: "healthy" as const,
         detail: "SQLite reachable",
-        latencyMs: Math.round(performance.now() - started),
+        latencyMs: Math.round(performance.now() - started)
       };
     } catch (error) {
       return {
         name: "storage" as const,
         status: "unavailable" as const,
-        detail: error instanceof Error ? error.message : "Unknown storage error",
-        latencyMs: Math.round(performance.now() - started),
+        detail:
+          error instanceof Error ? error.message : "Unknown storage error",
+        latencyMs: Math.round(performance.now() - started)
       };
     }
   }
@@ -217,7 +230,9 @@ export class SqliteSessionStore implements SessionStore {
     try {
       this.database.exec(migration001);
       this.database
-        .prepare("INSERT INTO schema_migrations (version, applied_at) VALUES (1, ?)")
+        .prepare(
+          "INSERT INTO schema_migrations (version, applied_at) VALUES (1, ?)"
+        )
         .run(new Date().toISOString());
       this.database.exec("COMMIT");
     } catch (error) {
@@ -233,7 +248,7 @@ function mapSession(row: SessionRow): SessionRecord {
     projectId: row.project_id,
     title: row.title,
     createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    updatedAt: row.updated_at
   };
 }
 
@@ -245,6 +260,6 @@ function mapMessage(row: MessageRow): MessageRecord {
     role: row.role,
     content: row.content,
     ordinal: row.ordinal,
-    createdAt: row.created_at,
+    createdAt: row.created_at
   };
 }

@@ -10,7 +10,7 @@ import type {
   ProviderHealth,
   RequestMetricRecord,
   SessionRecord,
-  SystemHealth,
+  SystemHealth
 } from "@jarvis/contracts";
 import type { Logger } from "@jarvis/observability";
 import { ModelRouter } from "@jarvis/routing";
@@ -23,12 +23,15 @@ export class JarbasApplication {
     private readonly config: JarbasConfig,
     private readonly store: SessionStore,
     private readonly providers: ReadonlyMap<string, LlmProvider>,
-    private readonly logger: Logger,
+    private readonly logger: Logger
   ) {
     this.router = new ModelRouter(config);
   }
 
-  public createSession(projectId = "inbox", title = "Nova conversa"): SessionRecord {
+  public createSession(
+    projectId = "inbox",
+    title = "Nova conversa"
+  ): SessionRecord {
     return this.store.createSession(projectId, title);
   }
 
@@ -40,14 +43,20 @@ export class JarbasApplication {
     return this.store.listMessages(sessionId);
   }
 
-  public async *chat(request: ChatRequest, signal?: AbortSignal): AsyncIterable<ChatStreamEvent> {
-    if (!request.content.trim()) throw new Error("Message content cannot be empty");
-    if (!this.store.getSession(request.sessionId)) throw new Error("Session not found");
+  public async *chat(
+    request: ChatRequest,
+    signal?: AbortSignal
+  ): AsyncIterable<ChatStreamEvent> {
+    if (!request.content.trim())
+      throw new Error("Message content cannot be empty");
+    if (!this.store.getSession(request.sessionId))
+      throw new Error("Session not found");
 
     const requestId = randomUUID();
     const route = this.router.route(request.task ?? "simple_conversation");
     const provider = this.providers.get(route.providerId);
-    if (!provider) throw new Error(`Provider not registered: ${route.providerId}`);
+    if (!provider)
+      throw new Error(`Provider not registered: ${route.providerId}`);
 
     const startedAt = new Date();
     const startedPerformance = performance.now();
@@ -55,13 +64,16 @@ export class JarbasApplication {
     let assistantContent = "";
     let status: RequestMetricRecord["status"] = "failed";
     let errorCode: string | undefined;
-    let finishReason: Extract<ChatStreamEvent, { type: "done" }>["finishReason"] = "unknown";
+    let finishReason: Extract<
+      ChatStreamEvent,
+      { type: "done" }
+    >["finishReason"] = "unknown";
 
     this.store.appendMessage({
       sessionId: request.sessionId,
       requestId,
       role: "user",
-      content: request.content,
+      content: request.content
     });
     const messages = this.store
       .listMessages(request.sessionId)
@@ -74,7 +86,7 @@ export class JarbasApplication {
         requestId,
         model: route.providerModel,
         messages,
-        signal,
+        signal
       })) {
         if (event.type === "token") {
           firstTokenAt ??= performance.now();
@@ -82,10 +94,12 @@ export class JarbasApplication {
           yield event;
         } else {
           finishReason = event.finishReason;
-          status = event.finishReason === "cancelled" ? "cancelled" : "completed";
+          status =
+            event.finishReason === "cancelled" ? "cancelled" : "completed";
         }
       }
-      if (status === "failed") status = signal?.aborted ? "cancelled" : "completed";
+      if (status === "failed")
+        status = signal?.aborted ? "cancelled" : "completed";
       yield { type: "done", requestId, finishReason };
     } catch (error) {
       status = signal?.aborted ? "cancelled" : "failed";
@@ -95,7 +109,7 @@ export class JarbasApplication {
         sessionId: request.sessionId,
         providerId: route.providerId,
         modelId: route.modelId,
-        errorCode,
+        errorCode
       });
       throw error;
     } finally {
@@ -104,7 +118,7 @@ export class JarbasApplication {
           sessionId: request.sessionId,
           requestId,
           role: "assistant",
-          content: assistantContent,
+          content: assistantContent
         });
       }
       const finishedAt = new Date();
@@ -118,9 +132,11 @@ export class JarbasApplication {
         finishedAt: finishedAt.toISOString(),
         ...(firstTokenAt === undefined
           ? {}
-          : { timeToFirstTokenMs: Math.round(firstTokenAt - startedPerformance) }),
+          : {
+              timeToFirstTokenMs: Math.round(firstTokenAt - startedPerformance)
+            }),
         durationMs: finishedAt.getTime() - startedAt.getTime(),
-        ...(errorCode ? { errorCode } : {}),
+        ...(errorCode ? { errorCode } : {})
       });
     }
   }
@@ -135,16 +151,17 @@ export class JarbasApplication {
           status: "unavailable" as const,
           checkedAt: new Date().toISOString(),
           latencyMs: 0,
-          detail: `Provider not registered: ${route.providerId}`,
+          detail: `Provider not registered: ${route.providerId}`
         };
     const runtime: ComponentHealth = {
       name: "runtime",
       status: runtimeHealth.status,
       ...(runtimeHealth.detail ? { detail: runtimeHealth.detail } : {}),
-      latencyMs: runtimeHealth.latencyMs,
+      latencyMs: runtimeHealth.latencyMs
     };
     const available = runtimeHealth.availableModels ?? [];
-    const modelAvailable = available.includes("*") || available.includes(route.providerModel);
+    const modelAvailable =
+      available.includes("*") || available.includes(route.providerModel);
     const model: ComponentHealth = {
       name: "model",
       status:
@@ -155,13 +172,17 @@ export class JarbasApplication {
             : "degraded",
       detail: modelAvailable
         ? `${route.providerModel} available`
-        : `${route.providerModel} not reported by runtime`,
+        : `${route.providerModel} not reported by runtime`
     };
     const components: ComponentHealth[] = [
-      { name: "application", status: "healthy", detail: "Application initialized" },
+      {
+        name: "application",
+        status: "healthy",
+        detail: "Application initialized"
+      },
       storage,
       runtime,
-      model,
+      model
     ];
     const statuses = components.map(({ status }) => status);
     return {
@@ -171,7 +192,7 @@ export class JarbasApplication {
           ? "degraded"
           : "healthy",
       checkedAt: new Date().toISOString(),
-      components,
+      components
     };
   }
 
@@ -180,7 +201,7 @@ export class JarbasApplication {
       offline: this.config.runtime.offline,
       preset: this.config.routing.preset,
       providerId: this.config.runtime.defaultProviderId,
-      hardwareProfiles: this.config.hardwareProfiles,
+      hardwareProfiles: this.config.hardwareProfiles
     };
   }
 

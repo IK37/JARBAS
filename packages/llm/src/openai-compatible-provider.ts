@@ -4,7 +4,7 @@ import type {
   LlmProvider,
   ProviderHealth,
   ProviderModelInfo,
-  RuntimeDefinition,
+  RuntimeDefinition
 } from "@jarvis/contracts";
 
 interface StreamChunk {
@@ -24,14 +24,17 @@ export class OpenAiCompatibleProvider implements LlmProvider {
 
   public constructor(
     private readonly runtime: RuntimeDefinition,
-    private readonly apiKey?: string,
+    private readonly apiKey?: string
   ) {
-    if (!runtime.endpoint) throw new Error(`Runtime ${runtime.id} is missing an endpoint`);
+    if (!runtime.endpoint)
+      throw new Error(`Runtime ${runtime.id} is missing an endpoint`);
     this.id = runtime.id;
     this.runtimeId = runtime.id;
   }
 
-  public async *stream(request: GenerationRequest): AsyncIterable<GenerationEvent> {
+  public async *stream(
+    request: GenerationRequest
+  ): AsyncIterable<GenerationEvent> {
     const response = await fetch(`${this.endpoint}/chat/completions`, {
       method: "POST",
       headers: this.headers(),
@@ -40,18 +43,21 @@ export class OpenAiCompatibleProvider implements LlmProvider {
         messages: request.messages,
         stream: true,
         stream_options: { include_usage: true },
-        ...(request.temperature === undefined ? {} : { temperature: request.temperature }),
+        ...(request.temperature === undefined
+          ? {}
+          : { temperature: request.temperature }),
         ...(request.maxOutputTokens === undefined
           ? {}
-          : { max_tokens: request.maxOutputTokens }),
+          : { max_tokens: request.maxOutputTokens })
       }),
-      signal: this.signal(request.signal),
+      signal: this.signal(request.signal)
     });
 
     if (!response.ok) {
       throw new Error(`Runtime ${this.id} returned HTTP ${response.status}`);
     }
-    if (!response.body) throw new Error(`Runtime ${this.id} returned no response stream`);
+    if (!response.body)
+      throw new Error(`Runtime ${this.id} returned no response stream`);
 
     let finishReason: "stop" | "length" | "cancelled" | "unknown" = "unknown";
     let usage: { promptTokens?: number; completionTokens?: number } | undefined;
@@ -62,7 +68,8 @@ export class OpenAiCompatibleProvider implements LlmProvider {
       const choice = chunk.choices?.[0];
       const content = choice?.delta?.content;
       if (content) yield { type: "token", text: content };
-      if (choice?.finish_reason) finishReason = normalizeFinishReason(choice.finish_reason);
+      if (choice?.finish_reason)
+        finishReason = normalizeFinishReason(choice.finish_reason);
       if (chunk.usage) {
         usage = {
           ...(chunk.usage.prompt_tokens === undefined
@@ -70,7 +77,7 @@ export class OpenAiCompatibleProvider implements LlmProvider {
             : { promptTokens: chunk.usage.prompt_tokens }),
           ...(chunk.usage.completion_tokens === undefined
             ? {}
-            : { completionTokens: chunk.usage.completion_tokens }),
+            : { completionTokens: chunk.usage.completion_tokens })
         };
       }
     }
@@ -82,30 +89,43 @@ export class OpenAiCompatibleProvider implements LlmProvider {
     try {
       const response = await fetch(`${this.endpoint}/models`, {
         headers: this.headers(),
-        signal: this.signal(signal, 5_000),
+        signal: this.signal(signal, 5_000)
       });
-      const payload = response.ok ? ((await response.json()) as { data?: { id?: string }[] }) : undefined;
+      const payload = response.ok
+        ? ((await response.json()) as { data?: { id?: string }[] })
+        : undefined;
       return {
         status: response.ok ? "healthy" : "degraded",
         checkedAt: new Date().toISOString(),
         latencyMs: Math.round(performance.now() - started),
-        detail: response.ok ? "Runtime endpoint reachable" : `HTTP ${response.status}`,
+        detail: response.ok
+          ? "Runtime endpoint reachable"
+          : `HTTP ${response.status}`,
         ...(payload?.data
-          ? { availableModels: payload.data.flatMap((item) => (item.id ? [item.id] : [])) }
-          : {}),
+          ? {
+              availableModels: payload.data.flatMap((item) =>
+                item.id ? [item.id] : []
+              )
+            }
+          : {})
       };
     } catch (error) {
       return {
         status: "unavailable",
         checkedAt: new Date().toISOString(),
         latencyMs: Math.round(performance.now() - started),
-        detail: error instanceof Error ? error.message : "Unknown runtime error",
+        detail: error instanceof Error ? error.message : "Unknown runtime error"
       };
     }
   }
 
   public async modelInfo(model: string): Promise<ProviderModelInfo> {
-    return { providerId: this.id, runtimeId: this.runtimeId, model, local: this.runtime.local };
+    return {
+      providerId: this.id,
+      runtimeId: this.runtimeId,
+      model,
+      local: this.runtime.local
+    };
   }
 
   private get endpoint(): string {
@@ -115,24 +135,31 @@ export class OpenAiCompatibleProvider implements LlmProvider {
   private headers(): Record<string, string> {
     return {
       "content-type": "application/json",
-      ...(this.apiKey ? { authorization: `Bearer ${this.apiKey}` } : {}),
+      ...(this.apiKey ? { authorization: `Bearer ${this.apiKey}` } : {})
     };
   }
 
-  private signal(signal?: AbortSignal, timeoutMs = this.runtime.requestTimeoutMs): AbortSignal {
+  private signal(
+    signal?: AbortSignal,
+    timeoutMs = this.runtime.requestTimeoutMs
+  ): AbortSignal {
     const timeout = AbortSignal.timeout(timeoutMs);
     return signal ? AbortSignal.any([signal, timeout]) : timeout;
   }
 }
 
-function normalizeFinishReason(reason: string): "stop" | "length" | "cancelled" | "unknown" {
+function normalizeFinishReason(
+  reason: string
+): "stop" | "length" | "cancelled" | "unknown" {
   if (reason === "stop") return "stop";
   if (reason === "length") return "length";
   if (reason === "cancelled") return "cancelled";
   return "unknown";
 }
 
-async function* parseServerSentEvents(stream: ReadableStream<Uint8Array>): AsyncIterable<string> {
+async function* parseServerSentEvents(
+  stream: ReadableStream<Uint8Array>
+): AsyncIterable<string> {
   const decoder = new TextDecoder();
   let buffer = "";
   for await (const bytes of stream) {
@@ -143,13 +170,15 @@ async function* parseServerSentEvents(stream: ReadableStream<Uint8Array>): Async
       const event = buffer.slice(0, boundary);
       buffer = buffer.slice(boundary + 2);
       for (const line of event.split("\n")) {
-        if (line.startsWith("data:") && line.slice(5).trim()) yield line.slice(5).trim();
+        if (line.startsWith("data:") && line.slice(5).trim())
+          yield line.slice(5).trim();
       }
       boundary = buffer.indexOf("\n\n");
     }
   }
   buffer += decoder.decode();
   for (const line of buffer.split("\n")) {
-    if (line.startsWith("data:") && line.slice(5).trim()) yield line.slice(5).trim();
+    if (line.startsWith("data:") && line.slice(5).trim())
+      yield line.slice(5).trim();
   }
 }

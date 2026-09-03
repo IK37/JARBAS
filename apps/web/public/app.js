@@ -10,7 +10,7 @@ const elements = {
   message: document.querySelector("#message"),
   send: document.querySelector("#send"),
   stop: document.querySelector("#stop"),
-  error: document.querySelector("#error"),
+  error: document.querySelector("#error")
 };
 
 let sessionId;
@@ -30,8 +30,11 @@ async function initialize() {
       request("/api/sessions", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ projectId: "jarbas-development", title: "Foundation session" }),
-      }),
+        body: JSON.stringify({
+          projectId: "jarbas-development",
+          title: "Foundation session"
+        })
+      })
     ]);
     sessionId = session.id;
     elements.runtime.textContent = config.providerId;
@@ -58,14 +61,14 @@ function renderHealth(health) {
       state.textContent = component.status;
       row.append(name, state);
       return row;
-    }),
+    })
   );
 }
 
 function renderMessages(messages) {
   elements.welcome?.remove();
   elements.timeline.replaceChildren(
-    ...messages.map((message) => messageElement(message.role, message.content)),
+    ...messages.map((message) => messageElement(message.role, message.content))
   );
   elements.timeline.scrollTop = elements.timeline.scrollHeight;
 }
@@ -74,7 +77,8 @@ function messageElement(role, content, streaming = false) {
   const article = document.createElement("article");
   article.className = role;
   const label = document.createElement("small");
-  label.textContent = role === "user" ? "VOCÊ" : streaming ? "JARBAS · STREAMING" : "JARBAS";
+  label.textContent =
+    role === "user" ? "VOCÊ" : streaming ? "JARBAS · STREAMING" : "JARBAS";
   const body = document.createElement("p");
   body.textContent = content;
   article.append(label, body);
@@ -93,9 +97,10 @@ async function sendMessage(content) {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ sessionId, content }),
-      signal: controller.signal,
+      signal: controller.signal
     });
-    if (!response.ok || !response.body) throw new Error(`Chat retornou HTTP ${response.status}`);
+    if (!response.ok || !response.body)
+      throw new Error(`Chat retornou HTTP ${response.status}`);
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
@@ -109,7 +114,8 @@ async function sendMessage(content) {
         buffer = buffer.slice(boundary + 1);
         if (line) {
           const event = JSON.parse(line);
-          if (event.type === "token") streamed.querySelector("p").textContent += event.text;
+          if (event.type === "token")
+            streamed.querySelector("p").textContent += event.text;
         }
         boundary = buffer.indexOf("\n");
       }
@@ -132,7 +138,8 @@ function setBusy(busy) {
 }
 
 function showError(error) {
-  elements.error.textContent = error instanceof Error ? error.message : "Falha inesperada";
+  elements.error.textContent =
+    error instanceof Error ? error.message : "Falha inesperada";
   elements.error.hidden = false;
 }
 

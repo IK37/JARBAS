@@ -3,7 +3,7 @@ import type {
   ComponentHealth,
   MessageRecord,
   RequestMetricRecord,
-  SessionRecord,
+  SessionRecord
 } from "@jarvis/contracts";
 
 export interface AppendMessageInput {

@@ -15,49 +15,74 @@ async function readJson<T>(path: string): Promise<T> {
   return value as T;
 }
 
-function integerFromEnvironment(value: string | undefined, fallback: number): number {
+function integerFromEnvironment(
+  value: string | undefined,
+  fallback: number
+): number {
   if (value === undefined) return fallback;
   const parsed = Number(value);
-  if (!Number.isInteger(parsed)) throw new Error(`Expected integer environment value, received: ${value}`);
+  if (!Number.isInteger(parsed))
+    throw new Error(`Expected integer environment value, received: ${value}`);
   return parsed;
 }
 
 export async function loadConfig(
   directory = resolve(process.cwd(), "configs"),
-  environment: Environment = process.env,
+  environment: Environment = process.env
 ): Promise<JarbasConfig> {
-  const [app, runtimeFile, modelFile, hardwareFile, privacyFile] = await Promise.all([
-    readJson<Omit<JarbasConfig, "runtimes" | "models" | "presets" | "hardwareProfiles" | "externalDataPolicy">>(
-      resolve(directory, "app.json"),
-    ),
-    readJson<Pick<JarbasConfig, "runtimes">>(resolve(directory, "runtimes.json")),
-    readJson<Pick<JarbasConfig, "models" | "presets">>(resolve(directory, "models.json")),
-    readJson<Pick<JarbasConfig, "hardwareProfiles">>(resolve(directory, "hardware.json")),
-    readJson<Pick<JarbasConfig, "externalDataPolicy">>(resolve(directory, "privacy.json")),
-  ]);
+  const [app, runtimeFile, modelFile, hardwareFile, privacyFile] =
+    await Promise.all([
+      readJson<
+        Omit<
+          JarbasConfig,
+          | "runtimes"
+          | "models"
+          | "presets"
+          | "hardwareProfiles"
+          | "externalDataPolicy"
+        >
+      >(resolve(directory, "app.json")),
+      readJson<Pick<JarbasConfig, "runtimes">>(
+        resolve(directory, "runtimes.json")
+      ),
+      readJson<Pick<JarbasConfig, "models" | "presets">>(
+        resolve(directory, "models.json")
+      ),
+      readJson<Pick<JarbasConfig, "hardwareProfiles">>(
+        resolve(directory, "hardware.json")
+      ),
+      readJson<Pick<JarbasConfig, "externalDataPolicy">>(
+        resolve(directory, "privacy.json")
+      )
+    ]);
 
   const config: JarbasConfig = {
     ...app,
     server: {
       ...app.server,
       host: environment.JARBAS_SERVER_HOST ?? app.server.host,
-      port: integerFromEnvironment(environment.JARBAS_SERVER_PORT, app.server.port),
+      port: integerFromEnvironment(
+        environment.JARBAS_SERVER_PORT,
+        app.server.port
+      )
     },
     storage: {
-      databasePath: environment.JARBAS_DATABASE_PATH ?? app.storage.databasePath,
+      databasePath: environment.JARBAS_DATABASE_PATH ?? app.storage.databasePath
     },
     runtime: {
       ...app.runtime,
-      defaultProviderId: environment.JARBAS_PROVIDER ?? app.runtime.defaultProviderId,
+      defaultProviderId:
+        environment.JARBAS_PROVIDER ?? app.runtime.defaultProviderId
     },
     routing: {
-      preset: (environment.JARBAS_PRESET as JarbasConfig["routing"]["preset"] | undefined) ??
-        app.routing.preset,
+      preset:
+        (environment.JARBAS_PRESET as
+          JarbasConfig["routing"]["preset"] | undefined) ?? app.routing.preset
     },
     ...runtimeFile,
     ...modelFile,
     ...hardwareFile,
-    ...privacyFile,
+    ...privacyFile
   };
 
   validateConfig(config);

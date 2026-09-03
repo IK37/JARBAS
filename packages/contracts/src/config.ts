@@ -37,7 +37,8 @@ export interface RuntimeDefinition {
   readonly label: string;
   readonly endpoint?: string;
   readonly local: boolean;
-  readonly backend: "auto" | "mock" | "cpu" | "vulkan" | "rocm" | "cuda" | "remote";
+  readonly backend:
+    "auto" | "mock" | "cpu" | "vulkan" | "rocm" | "cuda" | "remote";
   readonly capabilities: RuntimeCapabilities;
   readonly requestTimeoutMs: number;
 }
@@ -60,11 +61,7 @@ export interface HardwareProfile {
 
 export interface ExternalDataRule {
   readonly classification:
-    | "public"
-    | "personal"
-    | "private"
-    | "secret"
-    | "restricted";
+    "public" | "personal" | "private" | "secret" | "restricted";
   readonly defaultAction: "allow" | "confirm" | "deny";
   readonly externalAllowed: boolean;
 }

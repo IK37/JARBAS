@@ -9,7 +9,10 @@ import { fileURLToPath } from "node:url";
 import { buildServer } from "./build-server.js";
 
 export async function createRuntime() {
-  const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
+  const repositoryRoot = resolve(
+    dirname(fileURLToPath(import.meta.url)),
+    "../../.."
+  );
   const config = await loadConfig(resolve(repositoryRoot, "configs"));
   const logger = new JsonLogger(config.observability.level);
   const databasePath = isAbsolute(config.storage.databasePath)
@@ -18,6 +21,10 @@ export async function createRuntime() {
   const store = await SqliteSessionStore.open(databasePath);
   const providers = createProviders(config);
   const application = new JarbasApplication(config, store, providers, logger);
-  const server = buildServer(config, application, resolve(repositoryRoot, "apps/web/public"));
+  const server = buildServer(
+    config,
+    application,
+    resolve(repositoryRoot, "apps/web/public")
+  );
   return { config, logger, application, server };
 }

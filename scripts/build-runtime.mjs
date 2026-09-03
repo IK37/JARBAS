@@ -1,4 +1,11 @@
-import { mkdir, readdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  readdir,
+  readFile,
+  rm,
+  symlink,
+  writeFile
+} from "node:fs/promises";
 import { dirname, relative, resolve } from "node:path";
 import { stripTypeScriptTypes } from "node:module";
 
@@ -13,7 +20,7 @@ const projects = [
   "packages/security",
   "packages/storage",
   "packages/application",
-  "apps/api",
+  "apps/api"
 ];
 
 for (const project of projects) {
@@ -46,7 +53,7 @@ async function transformDirectory(sourceRoot, outputRoot) {
     const transformed = stripTypeScriptTypes(code, {
       mode: "transform",
       sourceMap: false,
-      sourceUrl: relative(root, source),
+      sourceUrl: relative(root, source)
     });
     await writeFile(target, transformed, "utf8");
   }

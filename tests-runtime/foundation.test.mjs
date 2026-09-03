@@ -17,7 +17,7 @@ import { buildServer } from "../apps/api/dist/build-server.js";
 async function testConfig(databasePath = ":memory:") {
   return loadConfig(resolve(process.cwd(), "configs"), {
     JARBAS_PROVIDER: "mock-local",
-    JARBAS_DATABASE_PATH: databasePath,
+    JARBAS_DATABASE_PATH: databasePath
   });
 }
 
@@ -40,7 +40,12 @@ test("SQLite persists sessions and messages across restarts", async () => {
   try {
     const first = await SqliteSessionStore.open(databasePath);
     const session = first.createSession("project-a", "Persistent session");
-    first.appendMessage({ sessionId: session.id, requestId: "request-a", role: "user", content: "Olá" });
+    first.appendMessage({
+      sessionId: session.id,
+      requestId: "request-a",
+      role: "user",
+      content: "Olá"
+    });
     first.close();
 
     const second = await SqliteSessionStore.open(databasePath);
@@ -60,15 +65,25 @@ test("application streams and persists a complete assistant turn", async () => {
     config,
     store,
     new Map([[provider.id, provider]]),
-    new JsonLogger("error", () => {}),
+    new JsonLogger("error", () => {})
   );
   const session = application.createSession();
   const events = [];
-  for await (const event of application.chat({ sessionId: session.id, content: "teste real" })) events.push(event);
+  for await (const event of application.chat({
+    sessionId: session.id,
+    content: "teste real"
+  }))
+    events.push(event);
   assert.equal(events[0]?.type, "route");
   assert.equal(events.at(-1)?.type, "done");
-  assert.deepEqual(application.listMessages(session.id).map(({ role }) => role), ["user", "assistant"]);
-  assert.match(application.listMessages(session.id)[1]?.content ?? "", /teste real/u);
+  assert.deepEqual(
+    application.listMessages(session.id).map(({ role }) => role),
+    ["user", "assistant"]
+  );
+  assert.match(
+    application.listMessages(session.id)[1]?.content ?? "",
+    /teste real/u
+  );
   application.close();
 });
 
@@ -80,7 +95,9 @@ test("OpenAI-compatible provider parses SSE and verifies available models", asyn
       return;
     }
     response.writeHead(200, { "content-type": "text/event-stream" });
-    response.end('data: {"choices":[{"delta":{"content":"Olá "}}]}\r\n\r\ndata: {"choices":[{"delta":{"content":"mundo"},"finish_reason":"stop"}]}\r\n\r\ndata: [DONE]\r\n\r\n');
+    response.end(
+      'data: {"choices":[{"delta":{"content":"Olá "}}]}\r\n\r\ndata: {"choices":[{"delta":{"content":"mundo"},"finish_reason":"stop"}]}\r\n\r\ndata: [DONE]\r\n\r\n'
+    );
   });
   await listen(upstream);
   try {
@@ -93,13 +110,23 @@ test("OpenAI-compatible provider parses SSE and verifies available models", asyn
       endpoint: `http://127.0.0.1:${address.port}/v1`,
       local: true,
       backend: "cpu",
-      capabilities: { streaming: true, structuredOutput: true, toolCalling: false, embeddings: false, vision: false },
-      requestTimeoutMs: 2_000,
+      capabilities: {
+        streaming: true,
+        structuredOutput: true,
+        toolCalling: false,
+        embeddings: false,
+        vision: false
+      },
+      requestTimeoutMs: 2_000
     });
     const health = await provider.healthCheck();
     assert.deepEqual(health.availableModels, ["test-model"]);
     let text = "";
-    for await (const event of provider.stream({ requestId: "r", model: "test-model", messages: [{ role: "user", content: "Oi" }] })) {
+    for await (const event of provider.stream({
+      requestId: "r",
+      model: "test-model",
+      messages: [{ role: "user", content: "Oi" }]
+    })) {
       if (event.type === "token") text += event.text;
     }
     assert.equal(text, "Olá mundo");
@@ -112,7 +139,12 @@ test("HTTP boundary serves UI, rejects hostile origins and streams chat", async 
   const config = await testConfig();
   const store = await SqliteSessionStore.open(":memory:");
   const provider = new MockProvider();
-  const application = new JarbasApplication(config, store, new Map([[provider.id, provider]]), new JsonLogger("error", () => {}));
+  const application = new JarbasApplication(
+    config,
+    store,
+    new Map([[provider.id, provider]]),
+    new JsonLogger("error", () => {})
+  );
   const server = buildServer(config, application);
   await listen(server);
   const address = server.address();
@@ -120,18 +152,36 @@ test("HTTP boundary serves UI, rejects hostile origins and streams chat", async 
   const base = `http://127.0.0.1:${address.port}`;
   try {
     assert.equal((await fetch(base)).status, 200);
-    assert.equal((await fetch(`${base}/api/health`, { headers: { origin: "https://evil.example" } })).status, 403);
-    const sessionResponse = await fetch(`${base}/api/sessions`, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
+    assert.equal(
+      (
+        await fetch(`${base}/api/health`, {
+          headers: { origin: "https://evil.example" }
+        })
+      ).status,
+      403
+    );
+    const sessionResponse = await fetch(`${base}/api/sessions`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{}"
+    });
     const session = await sessionResponse.json();
-    const chat = await fetch(`${base}/api/chat`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sessionId: session.id, content: "integração" }) });
+    const chat = await fetch(`${base}/api/chat`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ sessionId: session.id, content: "integração" })
+    });
     assert.equal(chat.status, 200);
     const events = (await chat.text())
       .trim()
       .split("\n")
       .map((line) => JSON.parse(line));
     assert.equal(
-      events.filter(({ type }) => type === "token").map(({ text }) => text).join(""),
-      "JARBAS recebeu: integração",
+      events
+        .filter(({ type }) => type === "token")
+        .map(({ text }) => text)
+        .join(""),
+      "JARBAS recebeu: integração"
     );
   } finally {
     await close(server);
@@ -140,11 +190,18 @@ test("HTTP boundary serves UI, rejects hostile origins and streams chat", async 
 });
 
 test("observability redacts nested credentials and bearer values", () => {
-  assert.deepEqual(redact({ apiKey: "abc", promptTokens: 42, nested: { note: "Bearer secret-token" } }), {
-    apiKey: "[REDACTED]",
-    promptTokens: 42,
-    nested: { note: "Bearer [REDACTED]" },
-  });
+  assert.deepEqual(
+    redact({
+      apiKey: "abc",
+      promptTokens: 42,
+      nested: { note: "Bearer secret-token" }
+    }),
+    {
+      apiKey: "[REDACTED]",
+      promptTokens: 42,
+      nested: { note: "Bearer [REDACTED]" }
+    }
+  );
 });
 
 function listen(server) {
@@ -155,5 +212,7 @@ function listen(server) {
 }
 
 function close(server) {
-  return new Promise((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
+  return new Promise((resolve, reject) =>
+    server.close((error) => (error ? reject(error) : resolve()))
+  );
 }

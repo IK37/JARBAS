@@ -1,4 +1,9 @@
-import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
+import {
+  createServer,
+  type IncomingMessage,
+  type Server,
+  type ServerResponse
+} from "node:http";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
@@ -19,20 +24,25 @@ interface ChatBody {
 export function buildServer(
   config: JarbasConfig,
   application: JarbasApplication,
-  webRoot = resolve(process.cwd(), "apps/web/public"),
+  webRoot = resolve(process.cwd(), "apps/web/public")
 ): Server {
   return createServer((request, response) => {
-    void handleRequest(config, application, webRoot, request, response).catch((error: unknown) => {
-      if (response.headersSent) {
-        response.destroy(error instanceof Error ? error : undefined);
-        return;
+    void handleRequest(config, application, webRoot, request, response).catch(
+      (error: unknown) => {
+        if (response.headersSent) {
+          response.destroy(error instanceof Error ? error : undefined);
+          return;
+        }
+        const status = error instanceof HttpError ? error.status : 500;
+        sendJson(response, status, {
+          error:
+            status < 500 && error instanceof Error
+              ? error.message
+              : "Request failed",
+          code: error instanceof Error ? error.name : "UNKNOWN_ERROR"
+        });
       }
-      const status = error instanceof HttpError ? error.status : 500;
-      sendJson(response, status, {
-        error: status < 500 && error instanceof Error ? error.message : "Request failed",
-        code: error instanceof Error ? error.name : "UNKNOWN_ERROR",
-      });
-    });
+    );
   });
 }
 
@@ -41,14 +51,20 @@ async function handleRequest(
   application: JarbasApplication,
   webRoot: string,
   request: IncomingMessage,
-  response: ServerResponse,
+  response: ServerResponse
 ): Promise<void> {
   applySecurityHeaders(response);
   enforceOrigin(config, request, response);
-  const url = new URL(request.url ?? "/", `http://${request.headers.host ?? "localhost"}`);
+  const url = new URL(
+    request.url ?? "/",
+    `http://${request.headers.host ?? "localhost"}`
+  );
 
   if (request.method === "OPTIONS") {
-    response.writeHead(204, { "access-control-allow-methods": "GET, POST, OPTIONS", "access-control-allow-headers": "content-type" });
+    response.writeHead(204, {
+      "access-control-allow-methods": "GET, POST, OPTIONS",
+      "access-control-allow-headers": "content-type"
+    });
     response.end();
     return;
   }
@@ -64,15 +80,18 @@ async function handleRequest(
     const body = await readJsonBody<CreateSessionBody>(request);
     const session = application.createSession(
       normalizedText(body.projectId, "inbox", 100),
-      normalizedText(body.title, "Nova conversa", 200),
+      normalizedText(body.title, "Nova conversa", 200)
     );
     sendJson(response, 201, session);
     return;
   }
-  const messagesMatch = /^\/api\/sessions\/([^/]+)\/messages$/u.exec(url.pathname);
+  const messagesMatch = /^\/api\/sessions\/([^/]+)\/messages$/u.exec(
+    url.pathname
+  );
   if (request.method === "GET" && messagesMatch?.[1]) {
     const sessionId = decodeURIComponent(messagesMatch[1]);
-    if (!application.getSession(sessionId)) throw new HttpError(404, "Session not found");
+    if (!application.getSession(sessionId))
+      throw new HttpError(404, "Session not found");
     sendJson(response, 200, application.listMessages(sessionId));
     return;
   }
@@ -81,15 +100,18 @@ async function handleRequest(
     if (!body.sessionId || !body.content?.trim()) {
       throw new HttpError(400, "sessionId and content are required");
     }
-    if (body.content.length > 50_000) throw new HttpError(413, "Message exceeds limit");
+    if (body.content.length > 50_000)
+      throw new HttpError(413, "Message exceeds limit");
     const abortController = new AbortController();
     response.once("close", () => abortController.abort());
     const input: ChatRequest = {
       sessionId: body.sessionId,
       content: body.content,
-      ...(body.task ? { task: body.task } : {}),
+      ...(body.task ? { task: body.task } : {})
     };
-    response.writeHead(200, { "content-type": "application/x-ndjson; charset=utf-8" });
+    response.writeHead(200, {
+      "content-type": "application/x-ndjson; charset=utf-8"
+    });
     for await (const event of application.chat(input, abortController.signal)) {
       response.write(`${JSON.stringify(event)}\n`);
     }
@@ -108,13 +130,20 @@ async function handleRequest(
   throw new HttpError(404, "Not found");
 }
 
-function normalizedText(value: string | undefined, fallback: string, maxLength: number): string {
+function normalizedText(
+  value: string | undefined,
+  fallback: string,
+  maxLength: number
+): string {
   const normalized = value?.trim() || fallback;
   return normalized.slice(0, maxLength);
 }
 
 class HttpError extends Error {
-  public constructor(public readonly status: number, message: string) {
+  public constructor(
+    public readonly status: number,
+    message: string
+  ) {
     super(message);
     this.name = "HttpError";
   }
@@ -124,9 +153,12 @@ async function readJsonBody<T>(request: IncomingMessage): Promise<T> {
   const chunks: Buffer[] = [];
   let bytes = 0;
   for await (const chunk of request) {
-    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as Uint8Array);
+    const buffer = Buffer.isBuffer(chunk)
+      ? chunk
+      : Buffer.from(chunk as Uint8Array);
     bytes += buffer.length;
-    if (bytes > 1_000_000) throw new HttpError(413, "Request body exceeds limit");
+    if (bytes > 1_000_000)
+      throw new HttpError(413, "Request body exceeds limit");
     chunks.push(buffer);
   }
   try {
@@ -136,28 +168,44 @@ async function readJsonBody<T>(request: IncomingMessage): Promise<T> {
   }
 }
 
-function sendJson(response: ServerResponse, status: number, body: unknown): void {
-  response.writeHead(status, { "content-type": "application/json; charset=utf-8" });
+function sendJson(
+  response: ServerResponse,
+  status: number,
+  body: unknown
+): void {
+  response.writeHead(status, {
+    "content-type": "application/json; charset=utf-8"
+  });
   response.end(JSON.stringify(body));
 }
 
-function enforceOrigin(config: JarbasConfig, request: IncomingMessage, response: ServerResponse): void {
+function enforceOrigin(
+  config: JarbasConfig,
+  request: IncomingMessage,
+  response: ServerResponse
+): void {
   const origin = request.headers.origin;
   if (!origin) return;
-  if (!config.server.allowedOrigins.includes(origin)) throw new HttpError(403, "Origin not allowed");
+  if (!config.server.allowedOrigins.includes(origin))
+    throw new HttpError(403, "Origin not allowed");
   response.setHeader("access-control-allow-origin", origin);
   response.setHeader("vary", "Origin");
 }
 
 function applySecurityHeaders(response: ServerResponse): void {
-  response.setHeader("content-security-policy", "default-src 'self'; connect-src 'self'; style-src 'self'; script-src 'self'; base-uri 'none'; frame-ancestors 'none'");
+  response.setHeader(
+    "content-security-policy",
+    "default-src 'self'; connect-src 'self'; style-src 'self'; script-src 'self'; base-uri 'none'; frame-ancestors 'none'"
+  );
   response.setHeader("x-content-type-options", "nosniff");
   response.setHeader("referrer-policy", "no-referrer");
   response.setHeader("cache-control", "no-store");
 }
 
-const staticAssets: Readonly<Record<string, { file: string; contentType: string }>> = {
+const staticAssets: Readonly<
+  Record<string, { file: string; contentType: string }>
+> = {
   "/": { file: "index.html", contentType: "text/html; charset=utf-8" },
   "/app.js": { file: "app.js", contentType: "text/javascript; charset=utf-8" },
-  "/styles.css": { file: "styles.css", contentType: "text/css; charset=utf-8" },
+  "/styles.css": { file: "styles.css", contentType: "text/css; charset=utf-8" }
 };

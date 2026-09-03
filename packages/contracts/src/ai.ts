@@ -76,7 +76,11 @@ export interface ModelRoute {
 }
 
 export type ChatStreamEvent =
-  | { readonly type: "route"; readonly requestId: Identifier; readonly route: ModelRoute }
+  | {
+      readonly type: "route";
+      readonly requestId: Identifier;
+      readonly route: ModelRoute;
+    }
   | { readonly type: "token"; readonly text: string }
   | {
       readonly type: "done";
