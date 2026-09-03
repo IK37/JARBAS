@@ -25,6 +25,14 @@ test("configuration validation rejects incomplete presets and unsafe policy", as
   assert.throws(() => validateConfig(unsafePolicy), /must never/u);
 });
 
+test("configuration accepts IPv6 loopback runtime endpoints", async () => {
+  const config = structuredClone(await testConfig());
+  const runtime = config.runtimes.find(({ id }) => id === "ollama-local");
+  assert.ok(runtime);
+  runtime.endpoint = "http://[::1]:11434/v1";
+  assert.doesNotThrow(() => validateConfig(config));
+});
+
 test("model router keeps model identity separate from execution runtime", async () => {
   const route = new ModelRouter(await testConfig()).route("coding");
   assert.equal(route.modelId, "qwen35-9b-q4km");

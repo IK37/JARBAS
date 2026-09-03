@@ -112,7 +112,8 @@ function validateRuntimes(
       if (endpoint.username || endpoint.password) {
         throw new Error(`Runtime ${id} endpoint must not contain credentials`);
       }
-      if (local && !loopbackHosts.has(endpoint.hostname)) {
+      const hostname = endpoint.hostname.replace(/^\[|\]$/gu, "");
+      if (local && !loopbackHosts.has(hostname)) {
         throw new Error(`Local runtime ${id} must use a loopback endpoint`);
       }
     }
